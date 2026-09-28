@@ -31,6 +31,12 @@ les décisions ci-dessous font foi.
 7. **Garde-fous** : bandeau « exercice » permanent, aucun canal réel, arrêt général.
 8. **Propagation** : copie figée. Une variante est indépendante de son modèle dès sa création,
    la filiation est enregistrée. Aucune propagation. La session jouée est figée elle aussi.
+9. **Format des réponses** (tranché au lot 3) : `answer_drafts.content` et `answers.content`
+   partagent la même forme JSON, selon le type de question :
+   ouverte `{ "text": "…" }` · choix unique `{ "choice": "a" }` ·
+   choix multiple `{ "choices": ["a", "b"] }` · oui/non `{ "yes": true }`.
+   Les identifiants d'options sont ceux saisis dans l'éditeur (`a`, `b`, …), jamais les libellés :
+   renommer un libellé dans une variante ne change donc pas les réponses déjà enregistrées.
 
 ## Questions encore ouvertes (demander avant d'implémenter)
 

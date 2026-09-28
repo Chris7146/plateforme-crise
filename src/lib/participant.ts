@@ -152,6 +152,35 @@ export async function rejoindreEquipe(
   return equipeId
 }
 
+/** Brouillon partagé entre les appareils de l'équipe (RPC `save_draft`). */
+export async function enregistrerBrouillon(
+  equipeId: string,
+  questionId: string,
+  contenu: unknown,
+): Promise<void> {
+  const { error } = await supabase.rpc('save_draft', {
+    p_team_id: equipeId,
+    p_question_id: questionId,
+    p_content: contenu as never,
+  })
+  if (error) throw error
+}
+
+/** Validation unique de la réponse d'équipe pour l'étape (RPC `submit_answers`). */
+export async function validerReponses(equipeId: string): Promise<void> {
+  const { error } = await supabase.rpc('submit_answers', { p_team_id: equipeId })
+  if (error) throw error
+}
+
+/** Message de l'équipe vers l'animateur (RPC `send_team_message`). */
+export async function envoyerMessage(equipeId: string, corps: string): Promise<void> {
+  const { error } = await supabase.rpc('send_team_message', {
+    p_team_id: equipeId,
+    p_body: corps,
+  })
+  if (error) throw error
+}
+
 /** Relecture complète de l'état : unique source de vérité côté participant. */
 export async function chargerVueEquipe(equipeId: string): Promise<VueEquipe> {
   const { data, error } = await supabase.rpc('get_team_view', { p_team_id: equipeId })
