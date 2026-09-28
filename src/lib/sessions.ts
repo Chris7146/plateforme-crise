@@ -68,6 +68,15 @@ export function urlRejoindre(code: string, origine: string): string {
   return `${origine.replace(/\/$/, '')}/?code=${normaliserCode(code)}`
 }
 
+/**
+ * Une adresse en « localhost » ne désigne que l'appareil qui l'ouvre : un QR
+ * code ou un code saisi depuis une tablette ne mènerait nulle part. En salle,
+ * la console doit être ouverte sur l'adresse réseau de la machine.
+ */
+export function origineJoignableParLesParticipants(origine: string): boolean {
+  return !/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|$)/i.test(origine)
+}
+
 /** Noms proposés à la création groupée : « Équipe 1 », « Équipe 2 »… */
 export function nomsEquipesParDefaut(nombre: number, deja = 0): string[] {
   return Array.from({ length: Math.max(0, nombre) }, (_, i) => `Équipe ${deja + i + 1}`)

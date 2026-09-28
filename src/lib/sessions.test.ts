@@ -5,6 +5,7 @@ import {
   libelleStatutSession,
   nomsEquipesParDefaut,
   normaliserCode,
+  origineJoignableParLesParticipants,
   raisonDemarrageImpossible,
   tonStatutSession,
   urlRejoindre,
@@ -117,5 +118,23 @@ describe('raisonDemarrageImpossible', () => {
     expect(raisonDemarrageImpossible(session('draft'), [equipe], 0)).toBe(
       'L’exercice ne comporte aucune étape.',
     )
+  })
+})
+
+describe('origineJoignableParLesParticipants', () => {
+  it('refuse les adresses locales, inutilisables depuis une tablette', () => {
+    expect(origineJoignableParLesParticipants('http://localhost:5173')).toBe(false)
+    expect(origineJoignableParLesParticipants('http://127.0.0.1:5173')).toBe(false)
+    expect(origineJoignableParLesParticipants('http://[::1]:5173')).toBe(false)
+  })
+
+  it('accepte une adresse réseau ou un nom de domaine', () => {
+    expect(origineJoignableParLesParticipants('http://10.2.0.115:5173')).toBe(true)
+    expect(origineJoignableParLesParticipants('http://192.168.1.20:5173')).toBe(true)
+    expect(origineJoignableParLesParticipants('https://crise.exemple.fr')).toBe(true)
+  })
+
+  it('ne se laisse pas tromper par un nom de domaine contenant « localhost »', () => {
+    expect(origineJoignableParLesParticipants('https://localhost.exemple.fr')).toBe(true)
   })
 })

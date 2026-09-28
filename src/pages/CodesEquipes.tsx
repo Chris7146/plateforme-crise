@@ -2,7 +2,12 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { QrCode } from '../components/QrCode'
 import { Bouton, Erreur, LienBouton } from '../components/ui'
-import { chargerSession, urlRejoindre, type DetailSession } from '../lib/sessions'
+import {
+  chargerSession,
+  origineJoignableParLesParticipants,
+  urlRejoindre,
+  type DetailSession,
+} from '../lib/sessions'
 
 /**
  * Page des codes d'accès, à projeter ou imprimer (lot 2).
@@ -51,6 +56,18 @@ export function CodesEquipes() {
           <LienBouton to={`/animateur/sessions/${detail.session.id}`}>Retour</LienBouton>
         </div>
       </header>
+
+      {origineJoignableParLesParticipants(origine) ? null : (
+        <p
+          role="alert"
+          className="rounded border border-ambre/40 bg-ambre/10 p-3 text-sm text-ambre print:hidden"
+        >
+          Cette console est ouverte sur <span className="text-texte">{origine}</span> : cette
+          adresse ne désigne que l’ordinateur qui l’affiche. Les QR codes et les codes ci-dessous
+          ne fonctionneront pas depuis un autre appareil. Ouvrez la console sur l’adresse réseau
+          de cette machine (par exemple http://192.168.1.20:5173), puis rechargez cette page.
+        </p>
+      )}
 
       <p className="text-center text-sm text-secondaire">
         Rendez-vous sur <span className="text-texte">{origine}</span> puis saisissez le code de
