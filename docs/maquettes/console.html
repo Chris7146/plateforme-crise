@@ -1,0 +1,23 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<style>:root{--font-mono:'DejaVu Sans Mono',monospace;--font-voice:'DejaVu Serif',serif;--font-sans:'DejaVu Sans',sans-serif}
+body{margin:0;padding:24px;background:#030806;font-family:var(--font-sans);max-width:760px}.sr-only{display:none}
+input[type=range]{accent-color:#3ecf8e}button{font-family:inherit}</style></head><body><div id="shot">
+<style>.tc{border:0.5px solid #1d3328;border-radius:8px;padding:10px 12px;background:#0b1712}.tc.sel{border-color:#3ecf8e}.bd{white-space:nowrap;font-size:11px;padding:2px 7px;border-radius:4px;display:inline-block}.ab{font-family:var(--font-mono);font-size:12px;padding:7px 10px;border-radius:6px;border:0.5px solid #2c4a3a;background:#0b1712;color:#d7e5dc}</style>
+<div style="border-radius:12px;overflow:hidden;background:#07100c;border:0.5px solid #1d3328;font-family:var(--font-mono);color:#d7e5dc;">
+<div style="background:#3a2a06;color:#f2c25c;font-size:12px;padding:5px 14px;border-bottom:0.5px solid #6b4d0e;display:flex;justify-content:space-between;"><span><i class="ti ti-alert-triangle"></i> Exercice en cours · EX-2611</span><span>T+ 00:41:12</span></div>
+<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:0.5px solid #1d3328;">
+<div><div style="font-size:12px;color:#7f9a8a;">console animateur</div><div style="font-size:15px;">Cyberattaque — CHU de Valmont</div></div>
+<div style="display:flex;gap:14px;font-size:12px;color:#9fb8a9;"><span><i class="ti ti-users"></i> 17 connectés</span><span style="color:#f2b43c;"><i class="ti ti-inbox"></i> 2 réponses à noter</span></div></div>
+<div id="teams" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:12px 16px;"></div>
+<div style="padding:0 16px 12px;"><div style="font-size:12px;color:#7f9a8a;margin-bottom:6px;">actions · <span style="color:#3ecf8e;">Équipe 2 · communication</span></div>
+<div style="display:flex;flex-wrap:wrap;gap:8px;"><button class="ab"><i class="ti ti-plus"></i> 2 min</button><button class="ab"><i class="ti ti-player-skip-forward"></i> étape suivante</button><button class="ab"><i class="ti ti-bulb"></i> envoyer un indice</button><button class="ab"><i class="ti ti-message"></i> message</button><button class="ab"><i class="ti ti-player-pause"></i> pause</button><button class="ab" style="margin-left:auto;border-color:#7a2a2a;color:#ef6b6b;background:#1d0b0b;"><i class="ti ti-hand-stop"></i> arrêt général</button></div></div>
+<div style="border-top:0.5px solid #1d3328;padding:10px 16px 14px;"><div style="font-size:12px;color:#7f9a8a;margin-bottom:6px;">journal · alimente le RETEX</div><div id="log" style="font-size:12px;line-height:1.8;"></div></div></div>
+<script>
+const T=[{n:'Équipe 1 · direction',st:3,s:312,tag:['à l\u2019heure','#3ecf8e','#0f2a1e'],info:'2 / 2 réponses'},{n:'Équipe 2 · communication',st:3,s:48,tag:['en retard','#ef6b6b','#2a0f0f'],info:'1 message non lu'},{n:'Équipe 3 · cellule de crise',st:3,s:277,tag:['réponse à noter','#f2b43c','#2a1f06'],info:'4 connectés'},{n:'Équipe 4 · opérations',st:4,s:540,tag:['en avance','#6fb6f2','#0b1a2a'],info:'étape validée'}];
+const logs=[['14:32:05','Équipe 2','indice envoyé : fiche réflexe p. 2'],['14:31:40','Équipe 3','réponse question 1 reçue'],['14:30:02','Équipe 2','message : « Qui contacte l\u2019ARS ? »'],['14:28:15','Toutes','étape 3 déclenchée · sirène']];
+const f=s=>String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+document.getElementById('teams').innerHTML=T.map((t,i)=>`<div class="tc ${i===1?'sel':''}"><div style="display:flex;justify-content:space-between;align-items:center;gap:6px;"><span style="font-size:13px;">${t.n}</span><span class="bd" style="color:${t.tag[1]};background:${t.tag[2]};">${t.tag[0]}</span></div><div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:8px;"><span style="font-size:12px;color:#7f9a8a;">étape ${t.st} / 6</span><span style="font-size:20px;font-weight:500;color:${t.s<60?'#ef6b6b':'#d7e5dc'};">${f(t.s)}</span></div><div style="font-size:11px;color:#9fb8a9;margin-top:2px;">${t.info}</div></div>`).join('');
+document.getElementById('log').innerHTML=logs.map(l=>`<div><span style="color:#5f7a6b;">${l[0]}</span> <span style="color:#3ecf8e;">${l[1]}</span> · ${l[2]}</div>`).join('');
+</script>
+</div></body></html>

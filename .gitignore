@@ -1,0 +1,18 @@
+# Dépendances et builds
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Variables d'environnement : jamais versionnées
+.env
+.env.local
+.env.*.local
+
+# Supabase (fichiers locaux de la CLI)
+supabase/.temp/
+supabase/.branches/
+
+# Divers
+.DS_Store
+*.log

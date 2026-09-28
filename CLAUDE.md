@@ -13,7 +13,7 @@ répondent à des questions ; un animateur pilote en temps réel puis exploite l
 
 - Front : Vite + React + TypeScript (strict) + Tailwind CSS + React Router.
   Application monopage (SPA) compilée en fichiers statiques.
-- Back : Supabase (projet hébergé à Paris) — PostgreSQL, Auth, Realtime, Storage, Cron.
+- Back : Supabase (projet hébergé en Irlande, région eu-west-1, dans l'Union européenne) — PostgreSQL, Auth, Realtime, Storage, Cron.
 - Client : `@supabase/supabase-js`, types générés (`src/lib/database.types.ts`).
 - Tests : Vitest (unitaires et intégration).
 - Pas d'autre backend, pas de serveur Node. La logique métier sensible vit dans

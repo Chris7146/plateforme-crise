@@ -30,7 +30,7 @@ par toi : elles touchent à des mots de passe ou à des clés que Claude Code ne
 
 ## 3. Configurer le projet Supabase **(toi)**
 
-Dans le tableau de bord Supabase, projet `plateforme-crise` (région Paris) :
+Dans le tableau de bord Supabase, projet `plateforme-crise` (région Irlande, eu-west-1) :
 
 1. **Authentication → Sign In / Providers → Anonymous sign-ins** : activer.
    C'est ce qui permet aux participants de rejoindre sans créer de compte.
@@ -39,17 +39,50 @@ Dans le tableau de bord Supabase, projet `plateforme-crise` (région Paris) :
 
 ## 4. Appliquer le schéma **(toi)**
 
-Dans un terminal, à la racine du dépôt :
+**Coupe le VPN avant de commencer** : il bloque les ports de la base de données
+(5432 et 6543). Si besoin, utilise le partage de connexion de ton téléphone le temps
+de la commande. Durablement, les ingénieurs réseaux doivent ouvrir ces ports sortants
+vers `*.pooler.supabase.com`, ou exclure ces adresses du tunnel VPN.
+
+Dans un terminal, à la racine du dépôt, lance les commandes **une par une**
+(la référence du projet est la partie de son URL placée avant `.supabase.co`) :
 
 ```bash
-npx supabase init                                # crée supabase/config.toml (répondre « n » aux questions)
-npx supabase login                               # ouvre le navigateur pour t'identifier
-npx supabase link --project-ref <REF_DU_PROJET>  # la référence figure dans l'URL du tableau de bord
-npx supabase db push                             # applique les deux migrations
+npx supabase init
 ```
 
-La commande `link` demande le **mot de passe de la base** : tape-le toi-même dans le
-terminal, ne le donne jamais à Claude Code.
+Répondre `n` aux questions sur VS Code et IntelliJ.
+
+```bash
+npx supabase login
+```
+
+```bash
+npx supabase link --project-ref gvnifntftxcanmdaiogh
+```
+
+Puis fournir le mot de passe de la base sans qu'il s'affiche ni reste dans l'historique :
+
+```bash
+read -s "SUPABASE_DB_PASSWORD?Mot de passe de la base : "
+```
+
+```bash
+export SUPABASE_DB_PASSWORD
+```
+
+```bash
+npx supabase db push
+```
+
+Répondre `Y` à la confirmation, puis effacer le mot de passe de la session :
+
+```bash
+unset SUPABASE_DB_PASSWORD
+```
+
+Ne jamais donner ce mot de passe à Claude Code. Ne pas coller les migrations à la main
+dans l'éditeur SQL : la CLI ne saurait pas qu'elles ont été appliquées.
 
 Vérifie ensuite dans **Table Editor** que les tables (`exercises`, `steps`, `teams`, `events`…)
 existent, et dans **Integrations → Cron** que la tâche `avancer-etapes-expirees` tourne.
@@ -98,5 +131,7 @@ Puis, pour chaque lot suivant, le même schéma : plan → validation → réali
   refuse et rappelle-lui CLAUDE.md. Ces quatre dérives sont les plus probables.
 - **Décision nouvelle** : si tu tranches une question en cours de route, ajoute-la à
   `docs/specification.md` (section « Décisions actées ») pour qu'elle s'applique à toutes les sessions.
+- **Nouvelles migrations** : chaque `npx supabase db push` exige une connexion hors VPN, et parfois le mot de passe.
+  Quand Claude Code prépare une migration, c'est toi qui lances la commande.
 - **Avant l'exercice à blanc** : passage au forfait Supabase Pro, et activation d'un CAPTCHA
   sur les connexions anonymes pour éviter les abus.
