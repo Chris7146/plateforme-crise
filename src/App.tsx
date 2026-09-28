@@ -4,7 +4,8 @@ import { GardeAnimateur } from './auth/GardeAnimateur'
 import { Layout } from './components/Layout'
 import { Accueil } from './pages/Accueil'
 import { Connexion } from './pages/Connexion'
-import { Animateur } from './pages/Animateur'
+import { EditeurExercice } from './pages/EditeurExercice'
+import { Exercices } from './pages/Exercices'
 
 export default function App() {
   return (
@@ -18,7 +19,23 @@ export default function App() {
               path="/animateur"
               element={
                 <GardeAnimateur>
-                  <Animateur />
+                  <Navigate to="/animateur/exercices" replace />
+                </GardeAnimateur>
+              }
+            />
+            <Route
+              path="/animateur/exercices"
+              element={
+                <GardeAnimateur>
+                  <Exercices />
+                </GardeAnimateur>
+              }
+            />
+            <Route
+              path="/animateur/exercices/:id"
+              element={
+                <GardeAnimateur>
+                  <EditeurExercice />
                 </GardeAnimateur>
               }
             />
