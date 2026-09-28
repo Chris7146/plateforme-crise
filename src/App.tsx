@@ -4,6 +4,7 @@ import { GardeAnimateur } from './auth/GardeAnimateur'
 import { Layout } from './components/Layout'
 import { Accueil } from './pages/Accueil'
 import { CodesEquipes } from './pages/CodesEquipes'
+import { Console } from './pages/Console'
 import { Connexion } from './pages/Connexion'
 import { EditeurExercice } from './pages/EditeurExercice'
 import { Exercices } from './pages/Exercices'
@@ -49,6 +50,10 @@ export default function App() {
             <Route
               path="/animateur/sessions/:id/codes"
               element={<Animateur><CodesEquipes /></Animateur>}
+            />
+            <Route
+              path="/animateur/sessions/:id/console"
+              element={<Animateur><Console /></Animateur>}
             />
 
             <Route path="*" element={<Navigate to="/" replace />} />

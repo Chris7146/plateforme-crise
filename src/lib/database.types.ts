@@ -580,6 +580,7 @@ export type Database = {
       }
       sessions: {
         Row: {
+          call_url: string | null
           created_at: string
           created_by: string | null
           ended_at: string | null
@@ -592,6 +593,7 @@ export type Database = {
           title: string
         }
         Insert: {
+          call_url?: string | null
           created_at?: string
           created_by?: string | null
           ended_at?: string | null
@@ -604,6 +606,7 @@ export type Database = {
           title: string
         }
         Update: {
+          call_url?: string | null
           created_at?: string
           created_by?: string | null
           ended_at?: string | null
@@ -797,6 +800,10 @@ export type Database = {
       is_admin: { Args: never; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }
       is_team_member: { Args: { p_team_id: string }; Returns: boolean }
+      log_call_opened: {
+        Args: { p_session_id: string; p_team_id?: string }
+        Returns: undefined
+      }
       join_team: {
         Args: {
           p_accept_terms: boolean
@@ -822,6 +829,10 @@ export type Database = {
       resume_session: { Args: { p_session_id: string }; Returns: undefined }
       save_draft: {
         Args: { p_content: Json; p_question_id: string; p_team_id: string }
+        Returns: undefined
+      }
+      score_answers: {
+        Args: { p_content_score: number; p_step_index: number; p_team_id: string }
         Returns: undefined
       }
       send_staff_message: {

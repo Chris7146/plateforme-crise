@@ -106,7 +106,14 @@ export function SessionDetail() {
             </span>
           </span>
         }
-        actions={<LienBouton to="/animateur/sessions">Sessions</LienBouton>}
+        actions={
+          <>
+            <LienBouton to="/animateur/sessions">Sessions</LienBouton>
+            <LienBouton to={`/animateur/sessions/${id}/console`} variante="primaire">
+              Console
+            </LienBouton>
+          </>
+        }
       />
 
       <Erreur>{erreur}</Erreur>

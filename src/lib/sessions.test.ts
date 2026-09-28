@@ -20,6 +20,7 @@ function session(statut: Session['status']): Session {
     title: 'Exercice du 12 octobre',
     status: statut,
     snapshot: null,
+    call_url: null,
     started_at: null,
     paused_at: null,
     ended_at: null,

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   basculerChoix,
+  decrireReponse,
+  decrireReponseType,
   lireChoix,
   lireChoixMultiples,
   lireContenus,
@@ -150,5 +152,57 @@ describe('questionsManquantes', () => {
 
   it('tolère l’absence de brouillons', () => {
     expect(questionsManquantes(questions, undefined).map((q) => q.id)).toEqual(['q-1'])
+  })
+})
+
+describe('decrireReponse', () => {
+  const options = [
+    { id: 'a', label: 'Isoler le réseau' },
+    { id: 'b', label: 'Plan blanc' },
+  ]
+
+  it('rend les choix par leur libellé, pas leur identifiant', () => {
+    expect(decrireReponse('single_choice', { choice: 'a' }, options)).toBe('Isoler le réseau')
+    expect(decrireReponse('multiple_choice', { choices: ['a', 'b'] }, options)).toBe(
+      'Isoler le réseau · Plan blanc',
+    )
+  })
+
+  it('retombe sur l’identifiant si l’option a disparu du snapshot', () => {
+    expect(decrireReponse('single_choice', { choice: 'z' }, options)).toBe('z')
+  })
+
+  it('rend les réponses ouvertes et oui/non', () => {
+    expect(decrireReponse('open', { text: 'Communiqué' })).toBe('Communiqué')
+    expect(decrireReponse('yes_no', { yes: false })).toBe('non')
+  })
+
+  it('signale une réponse absente', () => {
+    expect(decrireReponse('open', { text: '  ' })).toBe('aucune réponse')
+    expect(decrireReponse('multiple_choice', { choices: [] })).toBe('aucune réponse')
+    expect(decrireReponse('yes_no', undefined)).toBe('aucune réponse')
+  })
+})
+
+describe('decrireReponseType', () => {
+  const options = [{ id: 'a', label: 'Isoler le réseau' }]
+
+  it('rend le texte libre saisi dans l’éditeur', () => {
+    expect(decrireReponseType('Isoler le réseau, alerter la DSI')).toBe(
+      'Isoler le réseau, alerter la DSI',
+    )
+  })
+
+  it('accepte aussi le format des réponses d’équipe', () => {
+    expect(decrireReponseType({ text: 'Communiqué' })).toBe('Communiqué')
+    expect(decrireReponseType({ choice: 'a' }, options)).toBe('Isoler le réseau')
+    expect(decrireReponseType({ choices: ['a'] }, options)).toBe('Isoler le réseau')
+    expect(decrireReponseType({ yes: true })).toBe('oui')
+  })
+
+  it('signale l’absence de réponse type', () => {
+    expect(decrireReponseType(null)).toBe('aucune réponse type saisie')
+    expect(decrireReponseType('   ')).toBe('aucune réponse type saisie')
+    expect(decrireReponseType(42)).toBe('aucune réponse type saisie')
   })
 })

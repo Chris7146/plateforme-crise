@@ -151,3 +151,52 @@ export function questionsManquantes(
       question.mandatory && !reponseRenseignee(question.type, brouillons?.[question.id]),
   )
 }
+
+/**
+ * Description lisible d'une réponse, pour la notation et le RETEX.
+ * Les choix sont rendus par leur libellé, jamais par leur identifiant.
+ */
+export function decrireReponse(
+  type: TypeQuestion,
+  contenu: unknown,
+  options: OptionQuestion[] = [],
+): string {
+  const libelle = (id: string) => options.find((o) => o.id === id)?.label ?? id
+
+  if (type === 'open') {
+    const texte = lireTexte(contenu).trim()
+    return texte.length > 0 ? texte : 'aucune réponse'
+  }
+  if (type === 'single_choice') {
+    const choix = lireChoix(contenu)
+    return choix === null ? 'aucune réponse' : libelle(choix)
+  }
+  if (type === 'multiple_choice') {
+    const choix = lireChoixMultiples(contenu)
+    return choix.length === 0 ? 'aucune réponse' : choix.map(libelle).join(' · ')
+  }
+  const oui = lireOuiNon(contenu)
+  return oui === null ? 'aucune réponse' : oui ? 'oui' : 'non'
+}
+
+/**
+ * Description de la réponse type saisie par l'animateur.
+ *
+ * Contrairement aux réponses d'équipe, `expected_answer` est du texte libre
+ * (« a, b et d », « Isoler le réseau, alerter la DSI… ») : l'éditeur l'écrit
+ * comme une chaîne JSON. On accepte aussi le format des réponses d'équipe, au
+ * cas où une réponse type aurait été enregistrée sous cette forme.
+ */
+export function decrireReponseType(valeur: unknown, options: OptionQuestion[] = []): string {
+  if (typeof valeur === 'string') {
+    return valeur.trim().length > 0 ? valeur : 'aucune réponse type saisie'
+  }
+  if (typeof valeur !== 'object' || valeur === null) return 'aucune réponse type saisie'
+
+  const objet = valeur as Record<string, unknown>
+  if ('text' in objet) return decrireReponse('open', objet)
+  if ('choice' in objet) return decrireReponse('single_choice', objet, options)
+  if ('choices' in objet) return decrireReponse('multiple_choice', objet, options)
+  if ('yes' in objet) return decrireReponse('yes_no', objet)
+  return 'aucune réponse type saisie'
+}
