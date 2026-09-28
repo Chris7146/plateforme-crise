@@ -21,3 +21,9 @@ psql -d test_crise -f environnement_simule.sql
 psql -d test_crise -f ../migrations/20260912000000_schema_initial.sql
 psql -d test_crise -f scenario_securite.sql   # doit se terminer par TOUS_LES_TESTS_PASSENT
 ```
+
+## Jeu de démonstration
+
+`../seed_demo.sql` crée un modèle fictif complet (« Cyberattaque — établissement de santé »,
+6 étapes, 53 minutes) pour essayer l'éditeur. Ce n'est pas une migration : à coller dans
+l'éditeur SQL du projet Supabase, à la demande. Le script est rejouable sans créer de doublon.
