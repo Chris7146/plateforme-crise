@@ -52,7 +52,12 @@ export function Exercices() {
       <EnteteAnimateur
         titre="Modèles et variantes"
         sousTitre="bibliothèque d’exercices"
-        actions={<Bouton onClick={() => setModale('modele')}>Nouveau modèle</Bouton>}
+        actions={
+          <>
+            <LienBouton to="/animateur/sessions">Sessions</LienBouton>
+            <Bouton onClick={() => setModale('modele')}>Nouveau modèle</Bouton>
+          </>
+        }
       />
 
       <Erreur>{erreur}</Erreur>
