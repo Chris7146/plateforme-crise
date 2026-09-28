@@ -73,6 +73,15 @@ export function messageErreurEntree(erreur: unknown): string {
     return 'Vous devez accepter les conditions pour participer.'
   }
   if (/Connexion requise/i.test(brut)) return 'Connexion impossible. Réessayez.'
+  // Réglage du projet Supabase, et non une erreur de saisie du participant :
+  // Authentication → Sign In / Providers → Anonymous sign-ins.
+  if (/anonymous sign-?ins? (are )?disabled/i.test(brut)) {
+    return (
+      'Les connexions anonymes sont désactivées sur le projet Supabase. ' +
+      'Un animateur doit les activer dans Authentication → Sign In / Providers → ' +
+      'Anonymous sign-ins. Aucun compte participant n’est à créer.'
+    )
+  }
   return brut
 }
 

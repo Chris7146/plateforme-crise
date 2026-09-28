@@ -93,3 +93,11 @@ describe('mémorisation de l’équipe', () => {
     expect(lireEquipeMemorisee()).toBeNull()
   })
 })
+
+describe('messageErreurEntree — réglage du projet', () => {
+  it('explique quoi faire quand les connexions anonymes sont désactivées', () => {
+    const message = messageErreurEntree(new Error('Anonymous sign-ins are disabled'))
+    expect(message).toContain('Anonymous sign-ins')
+    expect(message).toContain('Aucun compte participant n’est à créer.')
+  })
+})
