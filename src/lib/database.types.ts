@@ -800,10 +800,6 @@ export type Database = {
       is_admin: { Args: never; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }
       is_team_member: { Args: { p_team_id: string }; Returns: boolean }
-      log_call_opened: {
-        Args: { p_session_id: string; p_team_id?: string }
-        Returns: undefined
-      }
       join_team: {
         Args: {
           p_accept_terms: boolean
@@ -811,6 +807,10 @@ export type Database = {
           p_display_name: string
         }
         Returns: string
+      }
+      log_call_opened: {
+        Args: { p_session_id: string; p_team_id?: string }
+        Returns: undefined
       }
       pause_session: { Args: { p_session_id: string }; Returns: undefined }
       release_item: {
@@ -832,7 +832,11 @@ export type Database = {
         Returns: undefined
       }
       score_answers: {
-        Args: { p_content_score: number; p_step_index: number; p_team_id: string }
+        Args: {
+          p_content_score: number
+          p_step_index: number
+          p_team_id: string
+        }
         Returns: undefined
       }
       send_staff_message: {
