@@ -10,7 +10,8 @@
     "typecheck": "tsc -b --force",
     "test": "vitest run",
     "test:watch": "vitest",
-    "gen:types": "supabase gen types typescript --linked > src/lib/database.types.ts"
+    "gen:types": "supabase gen types typescript --linked > src/lib/database.types.ts",
+    "verif:sql": "./supabase/tests/verifier_local.sh"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",

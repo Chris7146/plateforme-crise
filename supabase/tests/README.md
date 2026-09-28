@@ -13,14 +13,22 @@ Ils servent de référence à Claude Code pour écrire les tests d'intégration 
 (Vitest + participants anonymes réels), qui vérifieront les mêmes comportements sur le
 projet hébergé.
 
-Pour les rejouer sur une base PostgreSQL locale vide :
+Pour les rejouer en local :
 
 ```bash
-createdb test_crise
-psql -d test_crise -f environnement_simule.sql
-psql -d test_crise -f ../migrations/20260912000000_schema_initial.sql
-psql -d test_crise -f scenario_securite.sql   # doit se terminer par TOUS_LES_TESTS_PASSENT
+npm run verif:sql
 ```
+
+`verifier_local.sh` crée un cluster PostgreSQL temporaire (socket privée, aucun service
+permanent), y applique l'environnement simulé puis les migrations, joue les scénarios de
+sécurité dans une base, le jeu de démonstration dans une autre, et supprime tout à la fin —
+même en cas d'erreur. Il ne touche ni au projet Supabase hébergé ni à un serveur local existant.
+
+Prérequis : `brew install postgresql@17` (même version majeure que le projet hébergé).
+
+La migration `..._cron_echeances.sql` est ignorée en local : `pg_cron` est une extension
+fournie par Supabase, absente d'une installation PostgreSQL ordinaire. La planification des
+échéances ne peut donc être vérifiée que sur le projet hébergé.
 
 ## Jeu de démonstration
 
