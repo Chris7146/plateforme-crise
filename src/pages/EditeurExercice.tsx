@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { EnteteAnimateur } from '../components/EnteteAnimateur'
+import { ChampMedia } from '../components/editeur/ChampMedia'
+import { SectionsEtape } from '../components/editeur/SectionsEtape'
 import { Badge, Bouton, Champ, Erreur, LienBouton, Selecteur } from '../components/ui'
 import {
   chargerExercice,
@@ -75,6 +77,7 @@ export function EditeurExercice() {
             duration_seconds: etapeSelectionnee.duration_seconds,
             end_of_time: etapeSelectionnee.end_of_time,
             advance_on_submit: etapeSelectionnee.advance_on_submit,
+            ambient_audio_path: etapeSelectionnee.ambient_audio_path,
           }
         : null,
     )
@@ -86,7 +89,8 @@ export function EditeurExercice() {
       brouillon.title !== etapeSelectionnee.title ||
       brouillon.duration_seconds !== etapeSelectionnee.duration_seconds ||
       brouillon.end_of_time !== etapeSelectionnee.end_of_time ||
-      brouillon.advance_on_submit !== etapeSelectionnee.advance_on_submit
+      brouillon.advance_on_submit !== etapeSelectionnee.advance_on_submit ||
+      brouillon.ambient_audio_path !== etapeSelectionnee.ambient_audio_path
     )
   }, [brouillon, etapeSelectionnee])
 
@@ -211,6 +215,7 @@ export function EditeurExercice() {
 
         {etapeSelectionnee && brouillon ? (
           <PanneauEtape
+            exerciceId={id}
             etape={etapeSelectionnee}
             index={etapes.findIndex((e) => e.id === etapeSelectionnee.id)}
             total={nbEtapes}
@@ -315,6 +320,7 @@ function ListeEtapes({
 }
 
 function PanneauEtape({
+  exerciceId,
   etape,
   index,
   total,
@@ -325,6 +331,7 @@ function PanneauEtape({
   onEnregistrer,
   onSupprimer,
 }: {
+  exerciceId: string
   etape: Etape
   index: number
   total: number
@@ -413,9 +420,23 @@ function PanneauEtape({
         </span>
       </label>
 
-      <p className="border-t border-bordure/60 pt-4 text-xs text-secondaire">
-        Contenus diffusés, ambiance sonore, questions et indices : prochaine étape du lot 1.
-      </p>
+      <div className="border-t border-bordure/60 pt-4">
+        <ChampMedia
+          label="Ambiance sonore de l’étape (facultative)"
+          exerciceId={exerciceId}
+          chemin={brouillon.ambient_audio_path}
+          accept="audio/*"
+          onChemin={(chemin) => onChanger({ ...brouillon, ambient_audio_path: chemin })}
+        />
+        <p className="mt-1 text-xs text-secondaire">
+          Jouée en boucle côté participants, après le déverrouillage de l’audio par le clic
+          « Commencer ».
+        </p>
+      </div>
+
+      <div className="border-t border-bordure/60 pt-4">
+        <SectionsEtape exerciceId={exerciceId} etape={etape} />
+      </div>
 
       <div className="flex justify-end border-t border-bordure/60 pt-4">
         <Bouton variante="danger" onClick={onSupprimer}>

@@ -22,6 +22,8 @@ export interface ChampsEtape {
   duration_seconds: number
   end_of_time: ModeFinTemps
   advance_on_submit: boolean
+  /** Son d'ambiance joué pendant l'étape (chemin dans le compartiment `media`). */
+  ambient_audio_path: string | null
 }
 
 // ---------------------------------------------------------------------------
