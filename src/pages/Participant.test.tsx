@@ -49,7 +49,8 @@ function vue(partiel: Partial<VueEquipe> = {}, equipe: Partial<VueEquipe['team']
       contents: [
         { id: 'c-1', type: 'article', title: 'Flash info', body: 'Les urgences réorientent.' },
       ],
-      hints: [{ id: 'h-1', body: 'Désignez un porte-parole.' }],
+      // Le texte d'un indice n'arrive qu'à son ouverture (RPC `open_hint`).
+      hints: [{ id: 'h-1', released_at: '2026-10-12T09:03:00Z', opened: false, body: null }],
       questions: [
         {
           id: 'q-1',
@@ -106,11 +107,13 @@ describe('écran participant', () => {
     expect(screen.getByRole('timer')).toBeInTheDocument()
   })
 
-  it('affiche les contenus diffusés et les indices reçus', () => {
+  it('affiche les contenus diffusés et le panneau des indices', () => {
     simuler(vue())
     afficher()
     expect(screen.getByText('Les urgences réorientent.')).toBeInTheDocument()
-    expect(screen.getByText('Désignez un porte-parole.')).toBeInTheDocument()
+    expect(screen.getByRole('complementary', { name: 'Indices' })).toBeInTheDocument()
+    expect(screen.getByText('Nouvel indice reçu')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Ouvrir l’indice' })).toBeInTheDocument()
   })
 
   it('enregistre un choix dans le brouillon partagé', async () => {

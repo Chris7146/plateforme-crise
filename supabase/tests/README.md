@@ -2,7 +2,7 @@
 
 `scenario_securite.sql` décrit, sous forme exécutable, le comportement attendu du schéma :
 copie figée, isolation des équipes, confidentialité des réponses types et des étapes à venir,
-minuteurs, journal en ajout seul, arrêt général. 61 vérifications.
+minuteurs, journal en ajout seul, arrêt général, ouverture des indices. 85 vérifications.
 
 Il a été exécuté avec succès sur PostgreSQL 16 lors de la préparation du kit, dans un
 environnement simulant Supabase (`environnement_simule.sql`), avant toute application au

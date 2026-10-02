@@ -17,6 +17,22 @@ export interface EquipeMemorisee {
   prenom: string
 }
 
+/**
+ * Indice diffusé à l'équipe.
+ *
+ * `body` reste `null` tant que l'indice n'a pas été ouvert sur CET appareil
+ * (compte participant) : le texte n'est jamais transmis d'avance, il n'arrive
+ * qu'en réponse à `open_hint()`. Impossible donc de lire un indice par
+ * l'inspection du réseau sans que l'ouverture soit journalisée.
+ */
+export interface Indice {
+  id: string
+  /** Heure de diffusion (événement `hint_sent`), identique en auto et en manuel. */
+  released_at: string | null
+  opened: boolean
+  body: string | null
+}
+
 /** Vue d'équipe renvoyée par `get_team_view` (sans réponses types ni barèmes). */
 export interface VueEquipe {
   server_now: string
@@ -40,7 +56,7 @@ export interface VueEquipe {
     duration_seconds: number
     ambient_audio_path: string | null
     contents: Record<string, unknown>[]
-    hints: { id: string; body: string }[]
+    hints: Indice[]
     questions: Record<string, unknown>[]
   } | null
   drafts?: Record<string, unknown>
@@ -170,6 +186,20 @@ export async function enregistrerBrouillon(
 export async function validerReponses(equipeId: string): Promise<void> {
   const { error } = await supabase.rpc('submit_answers', { p_team_id: equipeId })
   if (error) throw error
+}
+
+/**
+ * Ouverture d'un indice (RPC `open_hint`) : révèle le texte et journalise
+ * l'ouverture. Idempotente — un indice déjà ouvert se relit sans produire de
+ * nouvel événement.
+ */
+export async function ouvrirIndice(equipeId: string, indiceId: string): Promise<Indice> {
+  const { data, error } = await supabase.rpc('open_hint', {
+    p_team_id: equipeId,
+    p_hint_id: indiceId,
+  })
+  if (error) throw error
+  return data as unknown as Indice
 }
 
 /** Message de l'équipe vers l'animateur (RPC `send_team_message`). */

@@ -4,7 +4,7 @@ import { AmbianceSonore } from '../components/participant/AmbianceSonore'
 import { BarreProgression } from '../components/participant/BarreProgression'
 import { ContenusDiffuses } from '../components/participant/ContenusDiffuses'
 import { EnteteEquipe } from '../components/participant/EnteteEquipe'
-import { Indices } from '../components/participant/Indices'
+import { PanneauIndices } from '../components/participant/PanneauIndices'
 import { Messagerie } from '../components/participant/Messagerie'
 import { Minuteur } from '../components/participant/Minuteur'
 import { Questions } from '../components/participant/Questions'
@@ -51,110 +51,121 @@ export function Participant() {
   const acheve = etat === 'fin' || etat === 'arret'
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-4 px-4 py-6">
-      <EnteteEquipe vue={vue} connexion={connexion} />
+    // Grand écran : colonne d'indices à droite (lg:order-2), sans empiéter sur
+    // le contenu de l'étape. Écran étroit : bandeau + tiroir, rendus en tête.
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-6 lg:flex-row lg:items-start lg:gap-6">
+      {vue.step ? (
+        <PanneauIndices
+          indices={vue.step.hints}
+          equipeId={id}
+          onApresAction={() => void relire()}
+        />
+      ) : null}
 
-      {enJeu || etat === 'pause' ? (
-        <div className="flex items-center justify-between gap-4 border-b border-bordure pb-3">
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-xs text-secondaire">{libelleEtape(vue)}</p>
-            <div className="mt-2">
-              <BarreProgression
-                indexCourant={vue.team.current_step}
-                nombre={vue.team.step_count}
-              />
+      <div className="flex min-w-0 flex-1 flex-col gap-4 lg:order-1">
+        <EnteteEquipe vue={vue} connexion={connexion} />
+
+        {enJeu || etat === 'pause' ? (
+          <div className="flex items-center justify-between gap-4 border-b border-bordure pb-3">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs text-secondaire">{libelleEtape(vue)}</p>
+              <div className="mt-2">
+                <BarreProgression
+                  indexCourant={vue.team.current_step}
+                  nombre={vue.team.step_count}
+                />
+              </div>
             </div>
+            <Minuteur vue={vue} decalageMs={decalageMs} />
           </div>
-          <Minuteur vue={vue} decalageMs={decalageMs} />
+        ) : null}
+
+        <Erreur>{erreur}</Erreur>
+
+        {etat === 'attente' ? (
+          <Carte className="flex flex-col gap-2">
+            <p className="text-texte">En attente du démarrage par l’animateur.</p>
+            <p className="text-sm text-secondaire">
+              Gardez cet écran ouvert : il basculera tout seul au lancement de l’exercice.
+            </p>
+          </Carte>
+        ) : null}
+
+        {etat === 'pause' ? (
+          <Carte className="flex flex-col gap-2 border-ambre/40">
+            <p className="text-ambre" role="status">
+              {libelleEtat('pause')}
+            </p>
+            <p className="text-sm text-secondaire">
+              Le temps est figé. L’exercice reprendra à la main de l’animateur.
+            </p>
+          </Carte>
+        ) : null}
+
+        {etat === 'temps_ecoule' ? (
+          <Carte className="flex flex-col gap-2 border-ambre/40">
+            <p className="text-ambre" role="status">
+              {libelleEtat('temps_ecoule')}
+            </p>
+            <p className="text-sm text-secondaire">
+              Vous pouvez encore valider votre réponse si ce n’est pas déjà fait.
+            </p>
+          </Carte>
+        ) : null}
+
+        {acheve ? (
+          <Carte className="flex flex-col gap-2">
+            <p className="text-texte">
+              {etat === 'arret'
+                ? 'L’exercice a été interrompu par l’animateur.'
+                : 'L’exercice est terminé.'}
+            </p>
+            <p className="text-sm text-secondaire">
+              Merci de votre participation. L’animateur vous présentera le retour d’expérience.
+            </p>
+          </Carte>
+        ) : null}
+
+        {enJeu ? (
+          <>
+            <AmbianceSonore chemin={vue.step?.ambient_audio_path ?? null} />
+            <ContenusDiffuses contenus={vue.step?.contents} />
+            <Questions vue={vue} equipeId={id} onApresAction={() => void relire()} />
+          </>
+        ) : null}
+
+        {!acheve ? (
+          <Messagerie vue={vue} equipeId={id} onApresAction={() => void relire()} />
+        ) : null}
+
+        {etat === 'attente' ? (
+          <Carte className="flex flex-col gap-3">
+            <h2 className="text-sm text-secondaire">
+              Participants connectés ({vue.participants.length})
+            </h2>
+            <ul className="flex flex-wrap gap-2">
+              {vue.participants.map((participant, index) => (
+                <li
+                  key={`${participant.name}-${index}`}
+                  className="rounded border border-bordure bg-fond px-3 py-1 text-sm text-texte"
+                >
+                  {participant.name}
+                </li>
+              ))}
+            </ul>
+          </Carte>
+        ) : null}
+
+        <div className="flex justify-end">
+          <Bouton
+            variante="secondaire"
+            onClick={() => {
+              if (window.confirm('Quitter cet exercice sur cet appareil ?')) retourAccueil()
+            }}
+          >
+            Quitter sur cet appareil
+          </Bouton>
         </div>
-      ) : null}
-
-      <Erreur>{erreur}</Erreur>
-
-      {etat === 'attente' ? (
-        <Carte className="flex flex-col gap-2">
-          <p className="text-texte">En attente du démarrage par l’animateur.</p>
-          <p className="text-sm text-secondaire">
-            Gardez cet écran ouvert : il basculera tout seul au lancement de l’exercice.
-          </p>
-        </Carte>
-      ) : null}
-
-      {etat === 'pause' ? (
-        <Carte className="flex flex-col gap-2 border-ambre/40">
-          <p className="text-ambre" role="status">
-            {libelleEtat('pause')}
-          </p>
-          <p className="text-sm text-secondaire">
-            Le temps est figé. L’exercice reprendra à la main de l’animateur.
-          </p>
-        </Carte>
-      ) : null}
-
-      {etat === 'temps_ecoule' ? (
-        <Carte className="flex flex-col gap-2 border-ambre/40">
-          <p className="text-ambre" role="status">
-            {libelleEtat('temps_ecoule')}
-          </p>
-          <p className="text-sm text-secondaire">
-            Vous pouvez encore valider votre réponse si ce n’est pas déjà fait.
-          </p>
-        </Carte>
-      ) : null}
-
-      {acheve ? (
-        <Carte className="flex flex-col gap-2">
-          <p className="text-texte">
-            {etat === 'arret'
-              ? 'L’exercice a été interrompu par l’animateur.'
-              : 'L’exercice est terminé.'}
-          </p>
-          <p className="text-sm text-secondaire">
-            Merci de votre participation. L’animateur vous présentera le retour d’expérience.
-          </p>
-        </Carte>
-      ) : null}
-
-      {enJeu ? (
-        <>
-          <AmbianceSonore chemin={vue.step?.ambient_audio_path ?? null} />
-          <ContenusDiffuses contenus={vue.step?.contents} />
-          <Indices indices={vue.step?.hints ?? []} />
-          <Questions vue={vue} equipeId={id} onApresAction={() => void relire()} />
-        </>
-      ) : null}
-
-      {!acheve ? (
-        <Messagerie vue={vue} equipeId={id} onApresAction={() => void relire()} />
-      ) : null}
-
-      {etat === 'attente' ? (
-        <Carte className="flex flex-col gap-3">
-          <h2 className="text-sm text-secondaire">
-            Participants connectés ({vue.participants.length})
-          </h2>
-          <ul className="flex flex-wrap gap-2">
-            {vue.participants.map((participant, index) => (
-              <li
-                key={`${participant.name}-${index}`}
-                className="rounded border border-bordure bg-fond px-3 py-1 text-sm text-texte"
-              >
-                {participant.name}
-              </li>
-            ))}
-          </ul>
-        </Carte>
-      ) : null}
-
-      <div className="flex justify-end">
-        <Bouton
-          variante="secondaire"
-          onClick={() => {
-            if (window.confirm('Quitter cet exercice sur cet appareil ?')) retourAccueil()
-          }}
-        >
-          Quitter sur cet appareil
-        </Bouton>
       </div>
     </div>
   )

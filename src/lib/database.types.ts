@@ -295,6 +295,41 @@ export type Database = {
           },
         ]
       }
+      hint_opens: {
+        Row: {
+          hint_id: string
+          opened_at: string
+          released_at: string | null
+          step_index: number
+          team_id: string
+          user_id: string
+        }
+        Insert: {
+          hint_id: string
+          opened_at?: string
+          released_at?: string | null
+          step_index: number
+          team_id: string
+          user_id: string
+        }
+        Update: {
+          hint_id?: string
+          opened_at?: string
+          released_at?: string | null
+          step_index?: number
+          team_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hint_opens_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hints: {
         Row: {
           body: string
@@ -781,6 +816,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      _hint_released_at: { Args: { p_hint: string; p_team: string }; Returns: string }
       _released: { Args: { p_kind: string; p_team: string }; Returns: Json }
       _require_staff: { Args: never; Returns: undefined }
       add_time: {
@@ -812,7 +848,12 @@ export type Database = {
         Args: { p_session_id: string; p_team_id?: string }
         Returns: undefined
       }
+      open_hint: {
+        Args: { p_hint_id: string; p_team_id: string }
+        Returns: Json
+      }
       pause_session: { Args: { p_session_id: string }; Returns: undefined }
+      release_due_hints: { Args: never; Returns: number }
       release_item: {
         Args: {
           p_item_id: string

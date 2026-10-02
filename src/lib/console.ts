@@ -273,7 +273,7 @@ export function libelleEvenement(evenement: Pick<Evenement, 'type' | 'payload'>)
       return 'arrêt général'
     case 'participant_joined':
       return `${chaine(charge.display_name, 'un participant')} a rejoint`
-    case 'step_advanced':
+    case 'step_started':
       return `passage à l’étape ${nombre(charge.step_index) + 1}`
     case 'time_up':
       return `temps écoulé (étape ${nombre(charge.step_index) + 1})`
@@ -289,7 +289,10 @@ export function libelleEvenement(evenement: Pick<Evenement, 'type' | 'payload'>)
     case 'content_released':
       return 'contenu diffusé'
     case 'hint_sent':
-      return 'indice envoyé'
+      // Même événement pour la diffusion manuelle et le déclenchement en T+.
+      return chaine(charge.trigger_mode) === 'auto' ? 'indice diffusé (automatique)' : 'indice envoyé'
+    case 'hint_opened':
+      return 'indice ouvert'
     case 'message_sent':
       return `message : « ${chaine(charge.body)} »`
     case 'call_opened':

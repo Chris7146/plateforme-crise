@@ -190,7 +190,8 @@ describe('messagesNonLus', () => {
 describe('libelleEvenement', () => {
   it('résume les événements du journal en français', () => {
     expect(libelleEvenement({ type: 'session_started', payload: {} })).toBe('exercice démarré')
-    expect(libelleEvenement({ type: 'step_advanced', payload: { step_index: 2 } })).toBe(
+    // Le type écrit par la base est bien `step_started` (voir _advance()).
+    expect(libelleEvenement({ type: 'step_started', payload: { step_index: 2 } })).toBe(
       'passage à l’étape 3',
     )
     expect(libelleEvenement({ type: 'time_changed', payload: { seconds: 120 } })).toBe('+ 2 min')
@@ -201,6 +202,18 @@ describe('libelleEvenement', () => {
     expect(
       libelleEvenement({ type: 'participant_joined', payload: { display_name: 'Camille' } }),
     ).toBe('Camille a rejoint')
+  })
+
+  it('distingue les deux modes de diffusion d’un indice et son ouverture', () => {
+    expect(libelleEvenement({ type: 'hint_sent', payload: { trigger_mode: 'manual' } })).toBe(
+      'indice envoyé',
+    )
+    expect(libelleEvenement({ type: 'hint_sent', payload: { trigger_mode: 'auto' } })).toBe(
+      'indice diffusé (automatique)',
+    )
+    expect(
+      libelleEvenement({ type: 'hint_opened', payload: { delay_seconds: 42, step_index: 1 } }),
+    ).toBe('indice ouvert')
   })
 
   it('retombe sur le type brut pour un événement inconnu', () => {

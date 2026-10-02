@@ -36,7 +36,10 @@ begin
   insert into public.contents (step_id, position, type, title, media_path, trigger_mode) values (s1, 1, 'image', 'Écran de rançon', 'ex/rancon.png', 'manual');
   insert into public.questions (step_id, position, type, prompt, options, expected_answer, scoring_guide)
     values (s1, 0, 'single_choice', 'Qui prévenez-vous ?', '[{"id":"a","label":"Astreinte"},{"id":"b","label":"Presse"}]', '["a"]', 'Astreinte = 8 pts');
+  -- Trois indices : un manuel diffusé, un automatique à T+60 s, un manuel jamais diffusé.
   insert into public.hints (step_id, position, body, trigger_mode) values (s1, 0, 'Consultez l''annuaire de crise', 'manual');
+  insert into public.hints (step_id, position, body, trigger_mode, trigger_offset_seconds) values (s1, 1, 'L''ARS doit être prévenue sous une heure', 'auto', 60);
+  insert into public.hints (step_id, position, body, trigger_mode) values (s1, 2, 'Le porte-parole doit rester unique', 'manual');
   insert into public._t values ('template', ex);
 end $$;
 
@@ -145,7 +148,12 @@ begin
   select (c ->> 'id')::uuid into manual_content
     from public.sessions s, jsonb_array_elements(s.snapshot -> 'steps' -> 0 -> 'contents') c
     where s.id = ses and c ->> 'trigger_mode' = 'manual';
-  select (h ->> 'id')::uuid into hint from public.sessions s, jsonb_array_elements(s.snapshot -> 'steps' -> 0 -> 'hints') h where s.id = ses;
+  select (h ->> 'id')::uuid into hint from public.sessions s, jsonb_array_elements(s.snapshot -> 'steps' -> 0 -> 'hints') h
+    where s.id = ses and (h ->> 'position')::int = 0;
+  -- Indice jamais diffusé : sert à vérifier qu'il reste inouvrable (section 9 bis).
+  insert into public._t values ('hint_cache',
+    (select h ->> 'id' from public.sessions s, jsonb_array_elements(s.snapshot -> 'steps' -> 0 -> 'hints') h
+      where s.id = ses and (h ->> 'position')::int = 2));
   perform public.release_item(ses, 'content', manual_content, array[t1]);
   perform public.release_item(ses, 'hint', hint, null);
   perform public._check(jsonb_array_length(public.get_team_view(t1) -> 'step' -> 'contents') = 2, 'contenu diffusé à l''équipe 1');
@@ -161,6 +169,79 @@ begin
   perform public.send_staff_message(t1, 'Pensez au porte-parole');
   perform public._check((select count(*) from public.messages where team_id = t1) = 2, 'messagerie dans les deux sens');
 end $$;
+
+-- ===== 9 bis. Indices : diffusion harmonisée et ouverture journalisée =====
+-- L'indice automatique a dépassé son T+60 s : la tâche système lui écrit le
+-- MÊME événement 'hint_sent' que la diffusion manuelle (un seul chemin).
+select public._as('00000000-0000-0000-0000-00000000000a');
+update public.teams set step_started_at = now() - interval '70 seconds';
+reset role;
+select public._check(public.release_due_hints() = 2, 'indice automatique journalisé pour les 2 équipes');
+select public._check(public.release_due_hints() = 0, 'indice automatique : aucune double journalisation');
+set role authenticated;
+select public._as('00000000-0000-0000-0000-00000000000a');
+select public._check((select count(*) from public.events where type = 'hint_sent') = 4,
+  'diffusion : 2 équipes × (1 indice manuel + 1 automatique)');
+select public._check(
+  (select count(distinct cles) from public.events e,
+     lateral (select array_agg(k order by k) from jsonb_object_keys(e.payload) k) c(cles)
+    where e.type = 'hint_sent') = 1,
+  'diffusion manuelle et automatique : même forme d''événement');
+
+-- Le délai « diffusion → ouverture » se mesure depuis l'événement de diffusion :
+-- cette pause le rend observable (now() est figé pendant le bloc qui suit).
+select pg_sleep(1.2);
+select public._as('00000000-0000-0000-0000-0000000000b1');
+do $$
+declare
+  t1 uuid := (select v from public._t where k = 't1');
+  v jsonb; manuel jsonb; auto jsonb; ouvert jsonb;
+begin
+  v := public.get_team_view(t1);
+  perform public._check(jsonb_array_length(v -> 'step' -> 'hints') = 2, 'indices manuel et automatique visibles');
+  manuel := v -> 'step' -> 'hints' -> 0;
+  auto   := v -> 'step' -> 'hints' -> 1;
+  insert into public._t values ('h_manuel', manuel ->> 'id'), ('h_auto', auto ->> 'id');
+  perform public._check(
+    (select array_agg(k order by k) from jsonb_object_keys(manuel) k)
+      = (select array_agg(k order by k) from jsonb_object_keys(auto) k),
+    'indice auto et indice manuel : même forme dans la vue');
+  perform public._check(manuel ->> 'body' is null and auto ->> 'body' is null,
+    'texte retenu tant que l''indice n''est pas ouvert');
+  perform public._check(not (manuel ->> 'opened')::boolean and not (auto ->> 'opened')::boolean,
+    'indices annoncés comme non ouverts');
+  perform public._check(manuel ->> 'released_at' is not null and auto ->> 'released_at' is not null,
+    'heure de diffusion transmise');
+
+  ouvert := public.open_hint(t1, (auto ->> 'id')::uuid);
+  perform public._check(ouvert ->> 'body' = 'L''ARS doit être prévenue sous une heure', 'ouverture : texte révélé');
+  perform public._check((ouvert ->> 'opened')::boolean, 'ouverture : indice marqué ouvert');
+  perform public._check((public.get_team_view(t1) -> 'step' -> 'hints' -> 1 ->> 'body') is not null,
+    'indice ouvert : relisible sans nouvelle ouverture');
+  perform public._check((public.get_team_view(t1) -> 'step' -> 'hints' -> 0 ->> 'body') is null,
+    'indice non ouvert : toujours retenu');
+  -- Deuxième ouverture (deuxième clic, rechargement) : sans effet.
+  perform public.open_hint(t1, (auto ->> 'id')::uuid);
+end $$;
+select public._as('00000000-0000-0000-0000-00000000000a');
+select public._check((select count(*) from public.events where type = 'hint_opened') = 1,
+  'double ouverture : un seul événement');
+select public._check((select (payload ->> 'delay_seconds')::int from public.events where type = 'hint_opened') between 1 and 30,
+  'délai diffusion → ouverture mesuré');
+select public._check((select count(*) from public.hint_opens) = 1, 'une seule ligne d''ouverture');
+
+-- Isolation et écritures directes
+select public._as('00000000-0000-0000-0000-0000000000b1');
+select public._expect_error($$ select public.open_hint((select v::uuid from public._t where k='t2'), (select v::uuid from public._t where k='h_auto')) $$, 'P1 ouvre un indice de l''équipe 2');
+select public._expect_error($$ select public.open_hint((select v::uuid from public._t where k='t1'), (select v::uuid from public._t where k='hint_cache')) $$, 'ouverture d''un indice non diffusé');
+select public._expect_error($$ select public.open_hint((select v::uuid from public._t where k='t1'), gen_random_uuid()) $$, 'ouverture d''un indice inexistant');
+select public._expect_error($$ insert into public.hint_opens (team_id, hint_id, user_id, step_index) values ((select v::uuid from public._t where k='t1'), (select v::uuid from public._t where k='h_manuel'), '00000000-0000-0000-0000-0000000000b1', 0) $$, 'P1 écrit directement dans les ouvertures');
+select public._expect_error($$ select public.release_due_hints() $$, 'P1 appelle la diffusion automatique');
+select public._as('00000000-0000-0000-0000-0000000000b2');
+select public._expect_error($$ select public.open_hint((select v::uuid from public._t where k='t1'), (select v::uuid from public._t where k='h_auto')) $$, 'P2 ouvre un indice de l''équipe 1');
+select public._check((select count(*) from public.hint_opens) = 0, 'P2 ne voit pas les ouvertures de l''équipe 1');
+select public._check((public.get_team_view((select v::uuid from public._t where k='t2')) -> 'step' -> 'hints' -> 1 ->> 'opened')::boolean = false,
+  'l''ouverture par P1 ne marque pas l''indice de l''équipe 2');
 
 -- ===== 10. Médias : accès seulement si diffusé =====
 select public._as('00000000-0000-0000-0000-0000000000b1');
