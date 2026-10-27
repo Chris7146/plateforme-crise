@@ -94,4 +94,14 @@ psql_local -d demonstration -t -c "
     (select count(*) from public.steps),
     (select count(*) from public.clients));"
 
+echo "→ Base du scénario Vladivostok"
+preparer vladivostok
+echo "→ Scénario Vladivostok (structure + session jouée)"
+psql_local -d vladivostok -q -f "$ICI/scenario_vladivostok.sql" 2>&1 | grep -E "OK|ÉCHEC|terminées" | sed 's/^.*NOTICE:  /   /'
+echo "→ Rejeu du scénario Vladivostok (doit être sans effet)"
+psql_local -d vladivostok -q -f "$ICI/../seed_vladivostok.sql"
+psql_local -d vladivostok -t -c "
+  select format('   après rejeu : %s modèle(s) Vladivostok',
+    (select count(*) from public.exercises where title like 'Vladivostok%'));"
+
 echo "✓ Vérification terminée."

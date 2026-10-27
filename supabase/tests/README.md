@@ -35,3 +35,11 @@ fournie par Supabase, absente d'une installation PostgreSQL ordinaire. La planif
 `../seed_demo.sql` crée un modèle fictif complet (« Cyberattaque — établissement de santé »,
 6 étapes, 53 minutes) pour essayer l'éditeur. Ce n'est pas une migration : à coller dans
 l'éditeur SQL du projet Supabase, à la demande. Le script est rejouable sans créer de doublon.
+
+## Scénario Vladivostok
+
+`../seed_vladivostok.sql` crée le modèle « Vladivostok — Bad buzz : accusation de racisme à
+l'aéroport de Nantes » (12 étapes, 107 minutes, 28 médias attendus dans `media/vladivostok/`).
+`scenario_vladivostok.sql` le rejoue en session : structure, confidentialité des réponses
+types, diffusion automatique et manuelle des médias, parcours complet. Fiche animateur :
+`docs/scenarios/vladivostok.md`.
