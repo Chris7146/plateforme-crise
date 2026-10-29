@@ -863,6 +863,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      reopen_answers: {
+        Args: { p_step_index: number; p_team_id: string }
+        Returns: undefined
+      }
       reorder_steps: {
         Args: { p_exercise_id: string; p_step_ids: string[] }
         Returns: undefined

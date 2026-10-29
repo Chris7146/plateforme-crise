@@ -19,11 +19,14 @@ import {
   medianeEtapes,
   messagesNonLus,
   mettreEnPause,
+  reouvrirReponses,
+  reponseRouvrable,
   reprendre,
   statutEquipe,
   terminer,
 } from '../lib/console'
 import { demarrerSession, libelleStatutSession } from '../lib/sessions'
+import { messageErreur } from '../lib/erreurs'
 
 type Panneau = 'contenu' | 'indice' | 'message' | 'notation' | null
 
@@ -66,6 +69,7 @@ export function Console() {
   if (!etat) return <p className="px-4 py-8 text-sm text-secondaire">Chargement…</p>
 
   const { session, equipes, snapshot, reponses, notes, messages, journal, connectes } = etat
+  const { indicesDiffuses } = etat
   const equipe = equipes.find((e) => e.id === selection) ?? null
   const nbEtapes = snapshot?.etapes.length ?? 0
   const totalConnectes = Object.values(connectes).reduce((total, n) => total + n, 0)
@@ -80,7 +84,7 @@ export function Console() {
     try {
       await action()
     } catch (e) {
-      setErreurAction(e instanceof Error ? e.message : 'Action impossible.')
+      setErreurAction(messageErreur(e, 'Action impossible.'))
     }
     await relire()
   }
@@ -251,6 +255,22 @@ export function Console() {
                 ? ` (${etapesANoter(equipe.id, reponses, notes).length})`
                 : ''}
             </Bouton>
+            {/* Rattrapage d'une validation prématurée : possible tant que
+                l'équipe est dans l'étape concernée (RPC `reopen_answers`). */}
+            <Bouton
+              variante="secondaire"
+              onClick={() =>
+                confirmerPuis(
+                  `Rouvrir la réponse de ${equipe.name} pour l’étape ${equipe.current_step + 1} ?\n\n` +
+                    'La note attribuée sera supprimée. Le brouillon de l’équipe est conservé : ' +
+                    'elle pourra corriger et valider à nouveau.',
+                  () => reouvrirReponses(equipe.id, equipe.current_step),
+                )
+              }
+              disabled={!reponseRouvrable(equipe, reponses)}
+            >
+              Rouvrir la réponse
+            </Bouton>
           </div>
         </Carte>
       ) : null}
@@ -285,6 +305,8 @@ export function Console() {
           sessionId={id}
           equipe={equipe}
           snapshot={snapshot}
+          pausedAt={session.paused_at}
+          diffuses={indicesDiffuses[equipe.id] ?? []}
           onFermer={() => setPanneau(null)}
           onDiffuse={() => void relire()}
         />
@@ -296,6 +318,8 @@ export function Console() {
           sessionId={id}
           equipe={equipe}
           snapshot={snapshot}
+          pausedAt={session.paused_at}
+          diffuses={indicesDiffuses[equipe.id] ?? []}
           onFermer={() => setPanneau(null)}
           onDiffuse={() => void relire()}
         />

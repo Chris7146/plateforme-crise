@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import {
   etapesANoter,
-  itemsManuels,
+  indiceDejaDiffuse,
+  itemsDiffusables,
+  libelleDeclenchementIndice,
   libelleEvenement,
   libelleStatutEquipe,
   lireSnapshot,
   medianeEtapes,
   messagesNonLus,
+  reponseRouvrable,
   statutEquipe,
   tonStatutEquipe,
   type Message,
@@ -56,6 +59,7 @@ const snapshotBrut = {
       ],
       hints: [
         { id: 'h-1', body: 'Vérifier le SIH', trigger_mode: 'manual', trigger_offset_seconds: 0 },
+        { id: 'h-2', body: 'Prévenir l’ARS', trigger_mode: 'auto', trigger_offset_seconds: 240 },
       ],
     },
   ],
@@ -83,17 +87,81 @@ describe('lireSnapshot', () => {
   })
 })
 
-describe('itemsManuels', () => {
+describe('itemsDiffusables', () => {
   it('ne retient que les contenus à déclenchement manuel, et tous les indices', () => {
     const snapshot = lireSnapshot(snapshotBrut)
-    const { contenus, indices } = itemsManuels(snapshot, 0)
+    const { contenus, indices } = itemsDiffusables(snapshot, 0)
     expect(contenus.map((c) => c.id)).toEqual(['c-1'])
-    expect(indices.map((h) => h.id)).toEqual(['h-1'])
+    expect(indices.map((h) => h.id)).toEqual(['h-1', 'h-2'])
   })
 
   it('renvoie des listes vides hors des étapes connues', () => {
-    expect(itemsManuels(lireSnapshot(snapshotBrut), 5)).toEqual({ contenus: [], indices: [] })
-    expect(itemsManuels(null, 0)).toEqual({ contenus: [], indices: [] })
+    expect(itemsDiffusables(lireSnapshot(snapshotBrut), 5)).toEqual({ contenus: [], indices: [] })
+    expect(itemsDiffusables(null, 0)).toEqual({ contenus: [], indices: [] })
+  })
+})
+
+describe('indiceDejaDiffuse', () => {
+  const manuel = { id: 'h-1', trigger_mode: 'manual' as const, trigger_offset_seconds: 0 }
+  const auto = { id: 'h-2', trigger_mode: 'auto' as const, trigger_offset_seconds: 240 }
+  const debut = '2026-10-29T14:00:00Z'
+  const maintenant = Date.parse('2026-10-29T14:01:00Z') // T+60 s
+
+  it('reconnaît un indice déjà envoyé, quel que soit son mode', () => {
+    expect(indiceDejaDiffuse(manuel, { stepStartedAt: debut, pausedAt: null, diffuses: ['h-1'] }, maintenant)).toBe(true)
+    expect(indiceDejaDiffuse(auto, { stepStartedAt: debut, pausedAt: null, diffuses: ['h-2'] }, maintenant)).toBe(true)
+  })
+
+  it('laisse un indice manuel non envoyé disponible', () => {
+    expect(indiceDejaDiffuse(manuel, { stepStartedAt: debut, pausedAt: null, diffuses: [] }, maintenant)).toBe(false)
+  })
+
+  it('tient compte du T+ d’un indice automatique', () => {
+    const contexte = { stepStartedAt: debut, pausedAt: null, diffuses: [] }
+    expect(indiceDejaDiffuse(auto, contexte, maintenant)).toBe(false)
+    expect(indiceDejaDiffuse(auto, contexte, Date.parse('2026-10-29T14:04:00Z'))).toBe(true)
+  })
+
+  it('fige le temps écoulé pendant une pause, comme le serveur', () => {
+    const enPause = { stepStartedAt: debut, pausedAt: '2026-10-29T14:01:00Z', diffuses: [] }
+    expect(indiceDejaDiffuse(auto, enPause, Date.parse('2026-10-29T14:30:00Z'))).toBe(false)
+  })
+
+  it('ne conclut rien tant que l’étape n’a pas commencé', () => {
+    expect(indiceDejaDiffuse(auto, { stepStartedAt: null, pausedAt: null }, maintenant)).toBe(false)
+  })
+})
+
+describe('libelleDeclenchementIndice', () => {
+  it('annonce le déclenchement automatique et l’effet d’un envoi immédiat', () => {
+    expect(libelleDeclenchementIndice({ trigger_mode: 'auto', trigger_offset_seconds: 240 })).toBe(
+      'se déclenche seul à T+4 min · l’envoyer maintenant le diffuse tout de suite',
+    )
+  })
+
+  it('reste sobre pour un indice manuel', () => {
+    expect(libelleDeclenchementIndice({ trigger_mode: 'manual', trigger_offset_seconds: 0 })).toBe(
+      'envoi manuel',
+    )
+  })
+})
+
+describe('reponseRouvrable', () => {
+  const reponses = [{ team_id: 'eq-1', step_index: 2 }]
+
+  it('autorise la réouverture de l’étape courante d’une équipe en jeu', () => {
+    expect(reponseRouvrable({ id: 'eq-1', status: 'running', current_step: 2 }, reponses)).toBe(true)
+    expect(reponseRouvrable({ id: 'eq-1', status: 'time_up', current_step: 2 }, reponses)).toBe(true)
+  })
+
+  it('refuse une étape déjà quittée ou une équipe hors jeu', () => {
+    expect(reponseRouvrable({ id: 'eq-1', status: 'running', current_step: 3 }, reponses)).toBe(false)
+    expect(reponseRouvrable({ id: 'eq-1', status: 'finished', current_step: 2 }, reponses)).toBe(false)
+    expect(reponseRouvrable({ id: 'eq-2', status: 'running', current_step: 2 }, reponses)).toBe(false)
+  })
+
+  it('refuse quand l’équipe n’a rien validé', () => {
+    expect(reponseRouvrable({ id: 'eq-1', status: 'running', current_step: 2 }, [])).toBe(false)
   })
 })
 
@@ -198,6 +266,9 @@ describe('libelleEvenement', () => {
     expect(libelleEvenement({ type: 'time_changed', payload: { seconds: -60 } })).toBe('− 1 min')
     expect(libelleEvenement({ type: 'answers_scored', payload: { content_score: 6 } })).toBe(
       'note attribuée : 6',
+    )
+    expect(libelleEvenement({ type: 'answers_reopened', payload: { step_index: 7 } })).toBe(
+      'réponse rouverte (étape 8)',
     )
     expect(
       libelleEvenement({ type: 'participant_joined', payload: { display_name: 'Camille' } }),

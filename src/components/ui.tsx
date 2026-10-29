@@ -177,3 +177,41 @@ export function Modale({
     </div>
   )
 }
+
+/**
+ * Confirmation d'une action, au thème du projet.
+ *
+ * Remplace `window.confirm` là où la décision engage toute une équipe : le
+ * dialogue natif est illisible depuis le fond d'une salle, ses boutons ne
+ * respectent pas la cible tactile de 44 px et son libellé n'est pas traduisible.
+ * Le bouton de retrait vient en premier : c'est lui qui reçoit le focus.
+ */
+export function ModaleConfirmation({
+  titre,
+  message,
+  libelleConfirmer = 'Confirmer',
+  libelleAnnuler = 'Annuler',
+  onConfirmer,
+  onAnnuler,
+}: {
+  titre: string
+  message: ReactNode
+  libelleConfirmer?: string
+  libelleAnnuler?: string
+  onConfirmer: () => void
+  onAnnuler: () => void
+}) {
+  return (
+    <Modale titre={titre} onFermer={onAnnuler}>
+      <div className="flex flex-col gap-5">
+        <p className="text-sm leading-relaxed text-texte">{message}</p>
+        <div className="flex flex-wrap justify-end gap-3">
+          <Bouton variante="secondaire" onClick={onAnnuler}>
+            {libelleAnnuler}
+          </Bouton>
+          <Bouton onClick={onConfirmer}>{libelleConfirmer}</Bouton>
+        </div>
+      </div>
+    </Modale>
+  )
+}

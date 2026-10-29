@@ -1,18 +1,32 @@
 import { useState } from 'react'
-import { Bouton, Erreur, Modale } from '../ui'
+import { Badge, Bouton, Erreur, Modale } from '../ui'
 import { libelleTypeContenu } from '../../lib/elements'
-import { diffuser, itemsManuels, type Snapshot } from '../../lib/console'
+import {
+  diffuser,
+  indiceDejaDiffuse,
+  itemsDiffusables,
+  libelleDeclenchementIndice,
+  type Snapshot,
+} from '../../lib/console'
 import type { Equipe } from '../../lib/sessions'
+import { messageErreur } from '../../lib/erreurs'
 
 /**
  * Diffusion manuelle d'un contenu ou envoi d'un indice (RPC `release_item`).
  * Cible : l'équipe sélectionnée ou toutes les équipes de la session.
+ *
+ * Les indices automatiques figurent dans la liste : les envoyer avant leur T+
+ * les diffuse immédiatement (correctif du 29 octobre 2026). Un indice déjà
+ * parvenu à l'équipe sélectionnée — par envoi ou par le temps — est signalé et
+ * son bouton désactivé ; l'envoi à toutes les équipes reste possible.
  */
 export function ModaleDiffusion({
   genre,
   sessionId,
   equipe,
   snapshot,
+  pausedAt,
+  diffuses,
   onFermer,
   onDiffuse,
 }: {
@@ -20,10 +34,12 @@ export function ModaleDiffusion({
   sessionId: string
   equipe: Equipe
   snapshot: Snapshot | null
+  pausedAt: string | null
+  diffuses: string[]
   onFermer: () => void
   onDiffuse: () => void
 }) {
-  const { contenus, indices } = itemsManuels(snapshot, equipe.current_step)
+  const { contenus, indices } = itemsDiffusables(snapshot, equipe.current_step)
   const [toutesLesEquipes, setToutesLesEquipes] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
   const [enCours, setEnCours] = useState<string | null>(null)
@@ -35,7 +51,7 @@ export function ModaleDiffusion({
       await diffuser(sessionId, genre, itemId, toutesLesEquipes ? null : [equipe.id])
       onDiffuse()
     } catch (e) {
-      setErreur(e instanceof Error ? e.message : 'Diffusion impossible.')
+      setErreur(messageErreur(e, 'Diffusion impossible.'))
     } finally {
       setEnCours(null)
     }
@@ -47,11 +63,17 @@ export function ModaleDiffusion({
           id: c.id,
           principal: c.title,
           secondaire: libelleTypeContenu(c.type),
+          dejaDiffuse: false,
         }))
       : indices.map((h) => ({
           id: h.id,
           principal: h.body,
-          secondaire: h.trigger_mode === 'auto' ? `auto · T+${Math.round(h.trigger_offset_seconds / 60)} min` : 'manuel',
+          secondaire: libelleDeclenchementIndice(h),
+          dejaDiffuse: indiceDejaDiffuse(h, {
+            stepStartedAt: equipe.step_started_at,
+            pausedAt,
+            diffuses,
+          }),
         }))
 
   return (
@@ -64,7 +86,7 @@ export function ModaleDiffusion({
           Étape {equipe.current_step + 1} de <span className="text-texte">{equipe.name}</span>.
           {genre === 'content'
             ? ' Seuls les contenus à déclenchement manuel figurent ici.'
-            : ' Les indices peuvent être envoyés à tout moment.'}
+            : ' Les indices peuvent être envoyés à tout moment, y compris avant leur déclenchement automatique.'}
         </p>
 
         <label className="flex items-center gap-3 text-sm">
@@ -85,17 +107,27 @@ export function ModaleDiffusion({
           </p>
         ) : (
           <ul className="flex flex-col divide-y divide-bordure/60">
-            {liste.map((item) => (
-              <li key={item.id} className="flex items-center justify-between gap-3 py-2">
-                <span className="min-w-0">
-                  <span className="block text-sm text-texte">{item.principal}</span>
-                  <span className="block text-xs text-secondaire">{item.secondaire}</span>
-                </span>
-                <Bouton onClick={() => void envoyer(item.id)} disabled={enCours !== null}>
-                  {enCours === item.id ? 'envoi…' : 'Envoyer'}
-                </Bouton>
-              </li>
-            ))}
+            {liste.map((item) => {
+              // « Déjà diffusé » ne vaut que pour l'équipe sélectionnée :
+              // l'envoi groupé peut encore concerner les autres équipes.
+              const bloque = item.dejaDiffuse && !toutesLesEquipes
+              return (
+                <li key={item.id} className="flex items-center justify-between gap-3 py-2">
+                  <span className="min-w-0">
+                    <span className="block text-sm text-texte">{item.principal}</span>
+                    <span className="block text-xs text-secondaire">{item.secondaire}</span>
+                    {item.dejaDiffuse ? (
+                      <span className="mt-1 inline-block">
+                        <Badge ton="attention">déjà diffusé à {equipe.name}</Badge>
+                      </span>
+                    ) : null}
+                  </span>
+                  <Bouton onClick={() => void envoyer(item.id)} disabled={enCours !== null || bloque}>
+                    {enCours === item.id ? 'envoi…' : bloque ? 'déjà diffusé' : 'Envoyer'}
+                  </Bouton>
+                </li>
+              )
+            })}
           </ul>
         )}
 

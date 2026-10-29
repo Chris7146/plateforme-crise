@@ -18,6 +18,7 @@ vi.mock('../lib/console', async (importOriginal) => {
     terminer: vi.fn().mockResolvedValue(undefined),
     arreter: vi.fn().mockResolvedValue(undefined),
     noter: vi.fn().mockResolvedValue(undefined),
+    reouvrirReponses: vi.fn().mockResolvedValue(undefined),
     diffuser: vi.fn().mockResolvedValue(undefined),
     marquerMessagesLus: vi.fn().mockResolvedValue(undefined),
     journaliserVisio: vi.fn().mockResolvedValue(undefined),
@@ -35,7 +36,9 @@ vi.mock('../auth/AuthContext', () => ({
 }))
 
 const { useConsole } = await import('../hooks/useConsole')
-const { ajouterTemps, arreter, mettreEnPause, noter, diffuser } = await import('../lib/console')
+const { ajouterTemps, arreter, mettreEnPause, noter, diffuser, reouvrirReponses } = await import(
+  '../lib/console'
+)
 
 const snapshotBrut = {
   exercise: { id: 'ex-1', title: 'Cyberattaque', max_content_score: 8, max_time_bonus: 2 },
@@ -69,6 +72,7 @@ const snapshotBrut = {
       ],
       hints: [
         { id: 'h-1', body: 'Vérifier le SIH', trigger_mode: 'manual', trigger_offset_seconds: 0 },
+        { id: 'h-2', body: 'Prévenir l’ARS', trigger_mode: 'auto', trigger_offset_seconds: 240 },
       ],
     },
     { id: 'st-2', position: 1, title: 'Constats', duration_seconds: 600, contents: [], questions: [], hints: [] },
@@ -104,6 +108,11 @@ const session: Session = {
   created_at: '2026-10-12T08:00:00Z',
 }
 
+/** Étape commencée à l'instant : le T+ des indices automatiques n'est pas atteint. */
+function maintenant(): string {
+  return new Date().toISOString()
+}
+
 function etat(partiel: Partial<EtatConsole> = {}): EtatConsole {
   return {
     session,
@@ -117,6 +126,7 @@ function etat(partiel: Partial<EtatConsole> = {}): EtatConsole {
     messages: [],
     journal: [],
     connectes: { 'eq-1': 4, 'eq-2': 3 },
+    indicesDiffuses: {},
     ...partiel,
   }
 }
@@ -238,8 +248,61 @@ describe('console animateur', () => {
     afficher()
     await utilisateur.click(screen.getByRole('button', { name: 'Envoyer un indice' }))
     await utilisateur.click(screen.getByRole('checkbox'))
-    await utilisateur.click(screen.getByRole('button', { name: 'Envoyer' }))
+    await utilisateur.click(screen.getAllByRole('button', { name: 'Envoyer' })[0])
     await waitFor(() => expect(diffuser).toHaveBeenCalledWith('se-1', 'hint', 'h-1', null))
+  })
+
+  it('annonce le déclenchement automatique d’un indice', async () => {
+    const utilisateur = userEvent.setup()
+    simuler(etat({ equipes: [equipe({ id: 'eq-1', name: 'Équipe 1', step_started_at: maintenant() })] }))
+    afficher()
+    await utilisateur.click(screen.getByRole('button', { name: 'Envoyer un indice' }))
+    expect(
+      screen.getByText('se déclenche seul à T+4 min · l’envoyer maintenant le diffuse tout de suite'),
+    ).toBeInTheDocument()
+    await utilisateur.click(screen.getAllByRole('button', { name: 'Envoyer' })[1])
+    await waitFor(() => expect(diffuser).toHaveBeenCalledWith('se-1', 'hint', 'h-2', ['eq-1']))
+  })
+
+  it('signale un indice déjà diffusé et en désactive l’envoi pour cette équipe', async () => {
+    const utilisateur = userEvent.setup()
+    simuler(
+      etat({
+        equipes: [equipe({ id: 'eq-1', name: 'Équipe 1', step_started_at: maintenant() })],
+        indicesDiffuses: { 'eq-1': ['h-1'] },
+      }),
+    )
+    afficher()
+    await utilisateur.click(screen.getByRole('button', { name: 'Envoyer un indice' }))
+    expect(screen.getByText('déjà diffusé à Équipe 1')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'déjà diffusé' })).toBeDisabled()
+    // L'envoi à toutes les équipes reste possible : les autres ne l'ont pas reçu.
+    await utilisateur.click(screen.getByRole('checkbox'))
+    expect(screen.queryByRole('button', { name: 'déjà diffusé' })).not.toBeInTheDocument()
+  })
+
+  it('rouvre la réponse de l’équipe après confirmation', async () => {
+    const utilisateur = userEvent.setup()
+    simuler(etat({ reponses: [{ team_id: 'eq-1', step_index: 0 } as never] }))
+    afficher()
+    await utilisateur.click(screen.getByRole('button', { name: 'Rouvrir la réponse' }))
+    expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining('La note attribuée sera supprimée'))
+    await waitFor(() => expect(reouvrirReponses).toHaveBeenCalledWith('eq-1', 0))
+  })
+
+  it('ne rouvre rien si la confirmation est refusée', async () => {
+    const utilisateur = userEvent.setup()
+    vi.spyOn(window, 'confirm').mockReturnValue(false)
+    simuler(etat({ reponses: [{ team_id: 'eq-1', step_index: 0 } as never] }))
+    afficher()
+    await utilisateur.click(screen.getByRole('button', { name: 'Rouvrir la réponse' }))
+    expect(reouvrirReponses).not.toHaveBeenCalled()
+  })
+
+  it('n’offre pas la réouverture sans réponse validée pour l’étape courante', () => {
+    simuler(etat({ reponses: [{ team_id: 'eq-1', step_index: 1 } as never] }))
+    afficher()
+    expect(screen.getByRole('button', { name: 'Rouvrir la réponse' })).toBeDisabled()
   })
 
   it('montre la réponse type et le barème à la notation, et enregistre la note', async () => {

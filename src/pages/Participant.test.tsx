@@ -135,12 +135,27 @@ describe('écran participant', () => {
     expect(validerReponses).not.toHaveBeenCalled()
   })
 
-  it('valide la réponse d’équipe quand les obligatoires sont remplies', async () => {
+  it('valide la réponse d’équipe après confirmation', async () => {
     const utilisateur = userEvent.setup()
     simuler(vue({ drafts: { 'q-1': { choices: ['a'] } } }))
     afficher()
     await utilisateur.click(screen.getByRole('button', { name: /valider la réponse d’équipe/ }))
+    // Un clic ne suffit pas : la réponse engage toute l'équipe.
+    expect(validerReponses).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog', { name: 'Valider la réponse d’équipe ?' })).toBeInTheDocument()
+    await utilisateur.click(screen.getByRole('button', { name: 'Valider' }))
     await waitFor(() => expect(validerReponses).toHaveBeenCalledWith('eq-1'))
+  })
+
+  it('laisse revenir à la rédaction sans rien transmettre', async () => {
+    const utilisateur = userEvent.setup()
+    simuler(vue({ drafts: { 'q-1': { choices: ['a'] } } }))
+    afficher()
+    await utilisateur.click(screen.getByRole('button', { name: /valider la réponse d’équipe/ }))
+    await utilisateur.click(screen.getByRole('button', { name: 'Continuer à rédiger' }))
+    expect(validerReponses).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /valider la réponse d’équipe/ })).toBeEnabled()
   })
 
   it('annonce la réponse transmise et retire le bouton', () => {

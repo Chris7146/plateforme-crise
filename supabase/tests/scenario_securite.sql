@@ -36,10 +36,12 @@ begin
   insert into public.contents (step_id, position, type, title, media_path, trigger_mode) values (s1, 1, 'image', 'Écran de rançon', 'ex/rancon.png', 'manual');
   insert into public.questions (step_id, position, type, prompt, options, expected_answer, scoring_guide)
     values (s1, 0, 'single_choice', 'Qui prévenez-vous ?', '[{"id":"a","label":"Astreinte"},{"id":"b","label":"Presse"}]', '["a"]', 'Astreinte = 8 pts');
-  -- Trois indices : un manuel diffusé, un automatique à T+60 s, un manuel jamais diffusé.
+  -- Quatre indices : un manuel diffusé, un automatique à T+60 s, un manuel jamais
+  -- diffusé, un automatique lointain (T+240 s) envoyé à la main avant son délai.
   insert into public.hints (step_id, position, body, trigger_mode) values (s1, 0, 'Consultez l''annuaire de crise', 'manual');
   insert into public.hints (step_id, position, body, trigger_mode, trigger_offset_seconds) values (s1, 1, 'L''ARS doit être prévenue sous une heure', 'auto', 60);
   insert into public.hints (step_id, position, body, trigger_mode) values (s1, 2, 'Le porte-parole doit rester unique', 'manual');
+  insert into public.hints (step_id, position, body, trigger_mode, trigger_offset_seconds) values (s1, 3, 'Le plan blanc peut être déclenché', 'auto', 240);
   insert into public._t values ('template', ex);
 end $$;
 
@@ -243,6 +245,119 @@ select public._check((select count(*) from public.hint_opens) = 0, 'P2 ne voit p
 select public._check((public.get_team_view((select v::uuid from public._t where k='t2')) -> 'step' -> 'hints' -> 1 ->> 'opened')::boolean = false,
   'l''ouverture par P1 ne marque pas l''indice de l''équipe 2');
 
+-- ===== 9 ter. Indice automatique envoyé à la main AVANT son T+ =====
+-- Défaut du test « Vladivostok » (29 octobre 2026) : _released() ne lisait
+-- l'événement 'hint_sent' que pour les indices manuels. Un indice automatique
+-- envoyé en avance depuis la console restait invisible, et open_hint() le
+-- refusait, alors que le journal affichait « indice envoyé ».
+select public._as('00000000-0000-0000-0000-00000000000a');
+do $$
+declare
+  ses uuid := (select v from public._t where k = 'session');
+  t1  uuid := (select v from public._t where k = 't1');
+  t2  uuid := (select v from public._t where k = 't2');
+  loin uuid; indice jsonb;
+begin
+  select (h ->> 'id')::uuid into loin
+    from public.sessions s, jsonb_array_elements(s.snapshot -> 'steps' -> 0 -> 'hints') h
+   where s.id = ses and (h ->> 'position')::int = 3;
+  insert into public._t values ('h_loin', loin);
+  perform public._check(jsonb_array_length(public.get_team_view(t1) -> 'step' -> 'hints') = 2,
+    'indice automatique à T+240 s : invisible avant son délai');
+
+  perform public.release_item(ses, 'hint', loin, array[t1]);
+  perform public._check(jsonb_array_length(public.get_team_view(t1) -> 'step' -> 'hints') = 3,
+    'indice automatique envoyé à la main : visible tout de suite');
+  perform public._check(jsonb_array_length(public.get_team_view(t2) -> 'step' -> 'hints') = 2,
+    'indice envoyé à l''équipe 1 : invisible pour l''équipe 2');
+
+  select value into indice from jsonb_array_elements(public.get_team_view(t1) -> 'step' -> 'hints')
+   where value ->> 'id' = loin::text;
+  -- L'heure de référence du délai de lecture est celle de l'ENVOI, et non le
+  -- T+ théorique, qui n'est pas encore atteint.
+  -- clock_timestamp() : les événements avancent à l'intérieur de la transaction.
+  perform public._check(
+    (indice ->> 'released_at')::timestamptz between now() - interval '1 minute' and clock_timestamp()
+    and (indice ->> 'released_at')::timestamptz
+        < (select step_started_at + interval '240 seconds' from public.teams where id = t1),
+    'envoi manuel anticipé : heure de diffusion = heure de l''envoi, pas le T+');
+end $$;
+select public._as('00000000-0000-0000-0000-0000000000b1');
+select public._check(
+  public.open_hint((select v::uuid from public._t where k='t1'), (select v::uuid from public._t where k='h_loin')) ->> 'body'
+    = 'Le plan blanc peut être déclenché',
+  'indice automatique envoyé à la main : ouvrable par l''équipe');
+select public._as('00000000-0000-0000-0000-0000000000b2');
+select public._expect_error($$ select public.open_hint((select v::uuid from public._t where k='t2'), (select v::uuid from public._t where k='h_loin')) $$, 'équipe 2 : ouverture d''un indice qu''elle n''a pas reçu');
+
+-- Arrivée du T+ : l'équipe 1 l'a déjà reçu, seule l'équipe 2 est journalisée.
+select public._as('00000000-0000-0000-0000-00000000000a');
+update public.teams set step_started_at = now() - interval '250 seconds';
+reset role;
+select public._check(public.release_due_hints() = 1, 'T+ atteint : seule l''équipe 2 reçoit l''événement');
+select public._check(public.release_due_hints() = 0, 'T+ atteint : aucune journalisation supplémentaire');
+set role authenticated;
+select public._as('00000000-0000-0000-0000-00000000000a');
+select public._check((select count(*) from public.events e
+                       where e.type = 'hint_sent'
+                         and e.payload ->> 'item_id' = (select v from public._t where k='h_loin')
+                         and e.team_id = (select v::uuid from public._t where k='t1')) = 1,
+  'indice envoyé puis échu : pas de second événement pour l''équipe 1');
+
+-- ===== 9 quater. Réouverture d'une validation par l'animateur =====
+-- Au test, une validation prématurée (15 s après le début de l'étape) était
+-- irréversible : ni l'équipe ni l'animateur ne pouvaient la corriger.
+select public.score_answers((select v::uuid from public._t where k='t1'), 0, 6);
+select public._check((select content_score from public.scores
+                       where team_id = (select v::uuid from public._t where k='t1') and step_index = 0) = 6,
+  'note de contenu enregistrée');
+select public._as('00000000-0000-0000-0000-0000000000b1');
+select public._expect_error($$ select public.reopen_answers((select v::uuid from public._t where k='t1'), 0) $$, 'P1 rouvre la réponse de sa propre équipe');
+select public._as('00000000-0000-0000-0000-0000000000b2');
+select public._expect_error($$ select public.reopen_answers((select v::uuid from public._t where k='t1'), 0) $$, 'P2 rouvre la réponse de l''équipe 1');
+select public._as('00000000-0000-0000-0000-00000000000a');
+select public._expect_error($$ select public.reopen_answers((select v::uuid from public._t where k='t1'), 1) $$, 'réouverture d''une étape qui n''est pas l''étape courante');
+do $$
+declare t1 uuid := (select v from public._t where k = 't1'); charge jsonb; version int;
+begin
+  select state_version into version from public.teams where id = t1;
+  perform public.reopen_answers(t1, 0);
+  perform public._check((select count(*) from public.answers where team_id = t1 and step_index = 0) = 0,
+    'réouverture : réponses supprimées');
+  perform public._check((select count(*) from public.scores where team_id = t1 and step_index = 0) = 0,
+    'réouverture : note et bonus de temps supprimés');
+  perform public._check((select count(*) from public.answer_drafts where team_id = t1) = 1,
+    'réouverture : brouillons conservés');
+  perform public._check((select state_version from public.teams where id = t1) > version,
+    'réouverture : signal temps réel émis');
+  select payload into charge from public.events where type = 'answers_reopened' order by created_at desc limit 1;
+  perform public._check((charge ->> 'step_index')::int = 0
+                        and jsonb_array_length(charge -> 'answers') = 1
+                        and (charge ->> 'content_score')::numeric = 6
+                        and (charge ->> 'time_bonus')::numeric = 2,
+    'réouverture : contenu précédent et note journalisés');
+  perform public._check((select actor_id from public.events where type = 'answers_reopened'
+                          order by created_at desc limit 1) = '00000000-0000-0000-0000-00000000000a',
+    'réouverture : animateur identifié dans le journal');
+end $$;
+select public._expect_error($$ select public.reopen_answers((select v::uuid from public._t where k='t1'), 0) $$, 'réouverture alors qu''aucune réponse n''est validée');
+
+-- L'équipe reprend la main : brouillon modifiable, nouvelle validation possible.
+select public._as('00000000-0000-0000-0000-0000000000b1');
+select public._check(not (public.get_team_view((select v::uuid from public._t where k='t1')) ->> 'submitted')::boolean,
+  'réouverture : l''équipe repasse en saisie');
+select public.save_draft((select v::uuid from public._t where k='t1'), (select v::uuid from public._t where k='q'), '["b"]');
+select public.submit_answers((select v::uuid from public._t where k='t1'));
+select public._check((select count(*) from public.answers where team_id = (select v::uuid from public._t where k='t1')) = 1,
+  'revalidation : une seule réponse enregistrée');
+select public._as('00000000-0000-0000-0000-00000000000a');
+select public._check((select time_bonus from public.scores
+                       where team_id = (select v::uuid from public._t where k='t1') and step_index = 0) = 2,
+  'revalidation : bonus de temps recalculé');
+select public._check((select content_score from public.scores
+                       where team_id = (select v::uuid from public._t where k='t1') and step_index = 0) is null,
+  'revalidation : note de contenu à ressaisir');
+
 -- ===== 10. Médias : accès seulement si diffusé =====
 select public._as('00000000-0000-0000-0000-0000000000b1');
 select public._check(public.can_view_media('ex/rancon.png'), 'P1 accède au média diffusé');
@@ -268,6 +383,7 @@ set role authenticated;
 select public._as('00000000-0000-0000-0000-00000000000a');
 select public.stop_session((select v::uuid from public._t where k='session'));
 select public._check((select count(*) from public.teams where status = 'finished') = 2, 'arrêt général : toutes les équipes stoppées');
+select public._expect_error($$ select public.reopen_answers((select v::uuid from public._t where k='t1'), 1) $$, 'réouverture après l''arrêt général');
 select public._check((select count(*) from public.events) >= 15, 'journal alimenté (' || (select count(*) from public.events) || ' événements)');
 reset role;
 set role anon;

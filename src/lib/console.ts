@@ -248,13 +248,70 @@ export function messagesNonLus(equipeId: string, messages: Message[]): number {
     .length
 }
 
-/** Contenus et indices à déclenchement manuel de l'étape courante d'une équipe. */
-export function itemsManuels(snapshot: Snapshot | null, indexEtape: number) {
+/**
+ * Éléments que l'animateur peut diffuser pour l'étape courante d'une équipe :
+ * les contenus à déclenchement manuel, et TOUS les indices.
+ *
+ * Un indice automatique peut être envoyé avant son T+ — depuis le correctif du
+ * 29 octobre 2026, l'équipe le voit alors immédiatement (voir `_released()`).
+ */
+export function itemsDiffusables(snapshot: Snapshot | null, indexEtape: number) {
   const etape = snapshot?.etapes[indexEtape]
   return {
     contenus: (etape?.contents ?? []).filter((c) => c.trigger_mode === 'manual'),
     indices: etape?.hints ?? [],
   }
+}
+
+/** Contexte de diffusion d'une équipe, tel que le voit la fenêtre d'envoi. */
+export interface ContexteDiffusion {
+  /** `teams.step_started_at` de l'équipe (décalé à la reprise de pause). */
+  stepStartedAt: string | null
+  /** `sessions.paused_at` : pendant une pause, le temps écoulé est figé. */
+  pausedAt: string | null
+  /** Indices déjà envoyés à cette équipe (événements `hint_sent`). */
+  diffuses?: string[]
+}
+
+/**
+ * Un indice est-il déjà parvenu à l'équipe ?
+ *
+ * Même règle que `_released()` côté base : un événement `hint_sent` reçu, ou
+ * un indice automatique dont le T+ est écoulé. Sert à afficher « déjà diffusé »
+ * et à désactiver l'envoi pour cette équipe.
+ */
+export function indiceDejaDiffuse(
+  indice: Pick<IndiceSnapshot, 'id' | 'trigger_mode' | 'trigger_offset_seconds'>,
+  contexte: ContexteDiffusion,
+  maintenantMs: number = Date.now(),
+): boolean {
+  if (contexte.diffuses?.includes(indice.id)) return true
+  if (indice.trigger_mode !== 'auto' || !contexte.stepStartedAt) return false
+  const reference = contexte.pausedAt ? Date.parse(contexte.pausedAt) : maintenantMs
+  const ecoulees = (reference - Date.parse(contexte.stepStartedAt)) / 1000
+  return ecoulees >= indice.trigger_offset_seconds
+}
+
+/** « se déclenche seul à T+4 min » : rappel du mode d'un indice. */
+export function libelleDeclenchementIndice(
+  indice: Pick<IndiceSnapshot, 'trigger_mode' | 'trigger_offset_seconds'>,
+): string {
+  if (indice.trigger_mode !== 'auto') return 'envoi manuel'
+  const minutes = Math.round(indice.trigger_offset_seconds / 60)
+  return `se déclenche seul à T+${minutes} min · l’envoyer maintenant le diffuse tout de suite`
+}
+
+/**
+ * La réponse d'une équipe peut-elle être rouverte ?
+ * Même règle que `reopen_answers()` : seule l'étape courante, et seulement
+ * tant que l'équipe y joue (`running`) ou attend l'animateur (`time_up`).
+ */
+export function reponseRouvrable(
+  equipe: Pick<Equipe, 'id' | 'status' | 'current_step'>,
+  reponses: Pick<Reponse, 'team_id' | 'step_index'>[],
+): boolean {
+  if (equipe.status !== 'running' && equipe.status !== 'time_up') return false
+  return reponses.some((r) => r.team_id === equipe.id && r.step_index === equipe.current_step)
 }
 
 /** Résumé d'un événement du journal, en français. */
@@ -284,6 +341,8 @@ export function libelleEvenement(evenement: Pick<Evenement, 'type' | 'payload'>)
     }
     case 'answers_submitted':
       return `réponse validée (étape ${nombre(charge.step_index) + 1})`
+    case 'answers_reopened':
+      return `réponse rouverte (étape ${nombre(charge.step_index) + 1})`
     case 'answers_scored':
       return `note attribuée : ${nombre(charge.content_score)}`
     case 'content_released':
@@ -315,6 +374,8 @@ export interface EtatConsole {
   messages: Message[]
   journal: Evenement[]
   connectes: Record<string, number>
+  /** Indices déjà envoyés, par équipe (événements `hint_sent` de la session). */
+  indicesDiffuses: Record<string, string[]>
 }
 
 export async function chargerConsole(sessionId: string): Promise<EtatConsole | null> {
@@ -341,18 +402,33 @@ export async function chargerConsole(sessionId: string): Promise<EtatConsole | n
   if (journal.error) throw journal.error
 
   const identifiants = equipes.data.map((e) => e.id)
-  const [reponses, notes, participants] = await Promise.all([
+  const [reponses, notes, participants, diffusions] = await Promise.all([
     supabase.from('answers').select('*').in('team_id', identifiants),
     supabase.from('scores').select('*').in('team_id', identifiants),
     supabase.from('participants').select('team_id').in('team_id', identifiants),
+    // Lecture dédiée : le journal est tronqué aux 200 derniers événements,
+    // alors que « déjà diffusé » doit rester juste du début à la fin de la session.
+    supabase
+      .from('events')
+      .select('team_id, payload')
+      .eq('session_id', sessionId)
+      .eq('type', 'hint_sent'),
   ])
   if (reponses.error) throw reponses.error
   if (notes.error) throw notes.error
   if (participants.error) throw participants.error
+  if (diffusions.error) throw diffusions.error
 
   const connectes: Record<string, number> = {}
   for (const participant of participants.data) {
     connectes[participant.team_id] = (connectes[participant.team_id] ?? 0) + 1
+  }
+
+  const indicesDiffuses: Record<string, string[]> = {}
+  for (const diffusion of diffusions.data) {
+    const itemId = objet(diffusion.payload)?.item_id
+    if (!diffusion.team_id || typeof itemId !== 'string') continue
+    indicesDiffuses[diffusion.team_id] = [...(indicesDiffuses[diffusion.team_id] ?? []), itemId]
   }
 
   return {
@@ -364,6 +440,7 @@ export async function chargerConsole(sessionId: string): Promise<EtatConsole | n
     messages: messages.data,
     journal: journal.data,
     connectes,
+    indicesDiffuses,
   }
 }
 
@@ -438,6 +515,19 @@ export async function noter(
     p_team_id: equipeId,
     p_step_index: indexEtape,
     p_content_score: note,
+  })
+  if (error) throw error
+}
+
+/**
+ * Annule la validation d'une équipe pour son étape courante (RPC `reopen_answers`).
+ * Les réponses et la note sont supprimées après copie dans le journal ; les
+ * brouillons restent en place et l'équipe peut revalider.
+ */
+export async function reouvrirReponses(equipeId: string, indexEtape: number): Promise<void> {
+  const { error } = await supabase.rpc('reopen_answers', {
+    p_team_id: equipeId,
+    p_step_index: indexEtape,
   })
   if (error) throw error
 }

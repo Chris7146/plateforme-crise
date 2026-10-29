@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Bouton, Erreur } from '../ui'
+import { Bouton, Erreur, ModaleConfirmation } from '../ui'
 import {
   basculerChoix,
   lireChoix,
@@ -13,6 +13,7 @@ import {
 import { libelleTypeQuestion } from '../../lib/elements'
 import { saisiePossible, validationPossible } from '../../lib/etatParticipant'
 import { enregistrerBrouillon, validerReponses, type VueEquipe } from '../../lib/participant'
+import { messageErreur } from '../../lib/erreurs'
 
 /**
  * Questions de l'étape, avec brouillon partagé entre les appareils de l'équipe
@@ -36,6 +37,7 @@ export function Questions({
   const questions = lireQuestions(vue.step?.questions)
   const [erreur, setErreur] = useState<string | null>(null)
   const [validation, setValidation] = useState(false)
+  const [confirmation, setConfirmation] = useState(false)
 
   if (questions.length === 0) return null
 
@@ -43,7 +45,8 @@ export function Questions({
   const peutValider = validationPossible(vue)
   const manquantes = questionsManquantes(questions, vue.drafts)
 
-  async function valider() {
+  /** Un clic ne verrouille jamais la réponse de l'équipe : on confirme d'abord. */
+  function demanderConfirmation() {
     if (manquantes.length > 0) {
       setErreur(
         `Réponse obligatoire manquante : « ${manquantes[0].prompt} »` +
@@ -51,21 +54,19 @@ export function Questions({
       )
       return
     }
-    if (
-      !window.confirm(
-        'Valider la réponse de l’équipe pour cette étape ?\n\n' +
-          'Une seule validation est possible : elle ne pourra plus être modifiée.',
-      )
-    ) {
-      return
-    }
+    setErreur(null)
+    setConfirmation(true)
+  }
+
+  async function valider() {
+    setConfirmation(false)
     setValidation(true)
     setErreur(null)
     try {
       await validerReponses(equipeId)
       onApresAction()
     } catch (e) {
-      setErreur(e instanceof Error ? e.message : 'Validation impossible.')
+      setErreur(messageErreur(e, 'Validation impossible.'))
     } finally {
       setValidation(false)
     }
@@ -99,11 +100,22 @@ export function Questions({
           <p className="text-xs text-secondaire">
             brouillon partagé entre les appareils de l’équipe
           </p>
-          <Bouton onClick={valider} disabled={!peutValider || validation}>
+          <Bouton onClick={demanderConfirmation} disabled={!peutValider || validation}>
             {validation ? 'validation…' : 'valider la réponse d’équipe'}
           </Bouton>
         </div>
       )}
+
+      {confirmation ? (
+        <ModaleConfirmation
+          titre="Valider la réponse d’équipe ?"
+          message="Elle sera transmise à l’animateur et ne pourra plus être modifiée par l’équipe."
+          libelleConfirmer="Valider"
+          libelleAnnuler="Continuer à rédiger"
+          onConfirmer={() => void valider()}
+          onAnnuler={() => setConfirmation(false)}
+        />
+      ) : null}
     </section>
   )
 }
@@ -128,7 +140,7 @@ function Question({
       await enregistrerBrouillon(equipeId, question.id, contenu)
       onErreur(null)
     } catch (e) {
-      onErreur(e instanceof Error ? e.message : 'Brouillon non enregistré.')
+      onErreur(messageErreur(e, 'Brouillon non enregistré.'))
     }
   }
 

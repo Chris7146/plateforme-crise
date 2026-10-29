@@ -37,6 +37,18 @@ les décisions ci-dessous font foi.
    choix multiple `{ "choices": ["a", "b"] }` · oui/non `{ "yes": true }`.
    Les identifiants d'options sont ceux saisis dans l'éditeur (`a`, `b`, …), jamais les libellés :
    renommer un libellé dans une variante ne change donc pas les réponses déjà enregistrées.
+10. **Diffusion des indices** (tranché après le test du 29 octobre 2026) : un indice envoyé
+    depuis la console est visible immédiatement par l'équipe ciblée, quel que soit son mode de
+    déclenchement. Un indice automatique déjà envoyé n'est pas rediffusé à l'arrivée de son T+ ;
+    son heure de diffusion reste celle de l'envoi. La console signale « déjà diffusé » et
+    désactive l'envoi pour l'équipe concernée.
+11. **Réouverture d'une validation** : une validation peut être annulée par l'animateur tant que
+    l'équipe est dans l'étape concernée ; l'annulation est journalisée avec le contenu précédent
+    et la note, qui est supprimée. Les brouillons sont conservés et le bonus de temps est
+    recalculé à la nouvelle validation. Hors de l'étape courante, la réouverture n'est pas prévue en V1.
+12. **Validation d'équipe** : le bouton « valider la réponse d'équipe » ouvre une confirmation
+    dans l'application (« Valider la réponse d'équipe ? Elle sera transmise à l'animateur et ne
+    pourra plus être modifiée par l'équipe. »), avec « Valider » et « Continuer à rédiger ».
 
 ## Questions encore ouvertes (demander avant d'implémenter)
 
