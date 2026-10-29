@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.17"
   }
   graphql_public: {
     Tables: {
@@ -806,6 +806,10 @@ export type Database = {
       _bump: { Args: { p_team: string }; Returns: undefined }
       _current_step: { Args: { p_team: string }; Returns: Json }
       _elapsed_seconds: { Args: { p_team: string }; Returns: number }
+      _hint_released_at: {
+        Args: { p_hint: string; p_team: string }
+        Returns: string
+      }
       _log: {
         Args: {
           p_actor_kind: string
@@ -816,7 +820,6 @@ export type Database = {
         }
         Returns: undefined
       }
-      _hint_released_at: { Args: { p_hint: string; p_team: string }; Returns: string }
       _released: { Args: { p_kind: string; p_team: string }; Returns: Json }
       _require_staff: { Args: never; Returns: undefined }
       add_time: {
