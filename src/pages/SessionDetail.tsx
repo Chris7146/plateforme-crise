@@ -18,6 +18,7 @@ import {
   urlRejoindre,
   type DetailSession,
 } from '../lib/sessions'
+import { messageErreur } from '../lib/erreurs'
 
 /** Préparation d'une session : équipes, codes d'accès, démarrage (lot 2). */
 export function SessionDetail() {
@@ -37,7 +38,7 @@ export function SessionDetail() {
       setDetail(donnees)
       setErreur(null)
     } catch (e) {
-      setErreur(e instanceof Error ? e.message : 'Chargement impossible.')
+      setErreur(messageErreur(e, 'Chargement impossible.'))
     } finally {
       setChargement(false)
     }
@@ -52,7 +53,7 @@ export function SessionDetail() {
     try {
       await action()
     } catch (e) {
-      setErreur(e instanceof Error ? e.message : 'Opération impossible.')
+      setErreur(messageErreur(e, 'Opération impossible.'))
     }
     await recharger()
   }

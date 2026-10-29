@@ -3,6 +3,7 @@ import {
   heureReception,
   indicesTries,
   libelleCompteur,
+  messageOuvertureIndice,
   nombreNonOuverts,
   suivreIndices,
   type SuiviIndices,
@@ -108,5 +109,42 @@ describe('présentation des indices', () => {
   it('affiche l’heure de réception, et rien sans heure connue', () => {
     expect(heureReception(indice({ id: 'h-1', released_at: null }))).toBe('')
     expect(heureReception(indice({ id: 'h-1' }))).toMatch(/^\d{2}:\d{2}$/)
+  })
+})
+
+describe('messageOuvertureIndice', () => {
+  it('nomme la cause quand la base n’est pas à jour', () => {
+    // Cas réel du test « Vladivostok » : migration du panneau non appliquée.
+    expect(
+      messageOuvertureIndice({
+        code: 'PGRST202',
+        message: 'Could not find the function public.open_hint in the schema cache',
+      }),
+    ).toMatch(/n’est pas encore installée sur la base/)
+  })
+
+  it('distingue une coupure réseau', () => {
+    expect(messageOuvertureIndice(new TypeError('Failed to fetch'))).toMatch(/Connexion interrompue/)
+  })
+
+  it('explique un exercice ou une étape hors cours', () => {
+    expect(messageOuvertureIndice(new Error('L’exercice n’est pas en cours'))).toMatch(
+      /L’exercice n’est pas en cours/,
+    )
+    expect(messageOuvertureIndice(new Error('L’étape n’est pas en cours'))).toMatch(
+      /Cette étape n’est plus en cours/,
+    )
+  })
+
+  it('explique un indice non diffusé ou hors équipe', () => {
+    expect(messageOuvertureIndice({ message: 'Indice non diffusé à cette équipe' })).toMatch(
+      /pas encore été diffusé à votre équipe/,
+    )
+    expect(messageOuvertureIndice({ message: 'Accès refusé' })).toMatch(/ne concerne pas votre équipe/)
+  })
+
+  it('retombe sur le message générique pour une cause inconnue', () => {
+    expect(messageOuvertureIndice(new Error('boom'))).toBe('Indice indisponible pour l’instant. Réessayez.')
+    expect(messageOuvertureIndice(null)).toBe('Indice indisponible pour l’instant. Réessayez.')
   })
 })

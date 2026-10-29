@@ -4,6 +4,7 @@ import { libelleTypeQuestion } from '../../lib/elements'
 import { decrireReponse, decrireReponseType } from '../../lib/contenus'
 import { noter, type Note, type Reponse, type Snapshot } from '../../lib/console'
 import type { Equipe } from '../../lib/sessions'
+import { messageErreur } from '../../lib/erreurs'
 
 /**
  * Notation d'une étape (lot 4) : réponse de l'équipe à côté de la réponse type
@@ -55,7 +56,7 @@ export function ModaleNotation({
       onNote()
       onFermer()
     } catch (e) {
-      setErreur(e instanceof Error ? e.message : 'Note non enregistrée.')
+      setErreur(messageErreur(e, 'Note non enregistrée.'))
       setEnCours(false)
     }
   }

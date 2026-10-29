@@ -8,6 +8,7 @@ import {
   urlRejoindre,
   type DetailSession,
 } from '../lib/sessions'
+import { messageErreur } from '../lib/erreurs'
 
 /**
  * Page des codes d'accès, à projeter ou imprimer (lot 2).
@@ -24,7 +25,7 @@ export function CodesEquipes() {
         if (!donnees) setErreur('Session introuvable.')
         else setDetail(donnees)
       })
-      .catch((e) => setErreur(e instanceof Error ? e.message : 'Chargement impossible.'))
+      .catch((e) => setErreur(messageErreur(e, 'Chargement impossible.')))
   }, [id])
 
   if (erreur) {

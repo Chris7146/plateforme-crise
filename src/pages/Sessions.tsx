@@ -14,6 +14,7 @@ import {
   tonStatutSession,
   type ResumeSession,
 } from '../lib/sessions'
+import { messageErreur } from '../lib/erreurs'
 
 /** Liste des sessions et création d'une session à partir d'un exercice (lot 2). */
 export function Sessions() {
@@ -32,7 +33,7 @@ export function Sessions() {
       setExercices(listeExercices)
       setErreur(null)
     } catch (e) {
-      setErreur(e instanceof Error ? e.message : 'Chargement impossible.')
+      setErreur(messageErreur(e, 'Chargement impossible.'))
     }
   }, [])
 
@@ -143,7 +144,7 @@ function ModaleSession({
       await onCree()
       navigate(`/animateur/sessions/${id}`)
     } catch (err) {
-      setErreur(err instanceof Error ? err.message : 'Création impossible.')
+      setErreur(messageErreur(err, 'Création impossible.'))
       setEnCours(false)
     }
   }

@@ -24,6 +24,7 @@ import {
   type ListeGroupee,
   type ResumeExercice,
 } from '../lib/exercices'
+import { messageErreur } from '../lib/erreurs'
 
 /** Listes des modèles et de leurs variantes, création de l'un et de l'autre (lot 1). */
 export function Exercices() {
@@ -39,7 +40,7 @@ export function Exercices() {
       setClients(listeClients)
       setErreur(null)
     } catch (e) {
-      setErreur(e instanceof Error ? e.message : 'Chargement impossible.')
+      setErreur(messageErreur(e, 'Chargement impossible.'))
     }
   }, [])
 
@@ -177,7 +178,7 @@ function ModaleModele({
       await onCree()
       navigate(`/animateur/exercices/${id}`)
     } catch (err) {
-      setErreur(err instanceof Error ? err.message : 'Création impossible.')
+      setErreur(messageErreur(err, 'Création impossible.'))
       setEnCours(false)
     }
   }
@@ -246,7 +247,7 @@ function ModaleVariante({
       await onCree()
       navigate(`/animateur/exercices/${id}`)
     } catch (err) {
-      setErreur(err instanceof Error ? err.message : 'Création impossible.')
+      setErreur(messageErreur(err, 'Création impossible.'))
       setEnCours(false)
     }
   }

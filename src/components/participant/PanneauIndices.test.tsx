@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PanneauIndices } from './PanneauIndices'
 import type { Indice } from '../../lib/participant'
 
@@ -30,6 +30,10 @@ function afficher(indices: Indice[]) {
 }
 
 describe('panneau des indices', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
     localStorage.clear()
@@ -111,7 +115,8 @@ describe('panneau des indices', () => {
 
   it('signale une ouverture impossible sans perdre l’indice', async () => {
     const utilisateur = userEvent.setup()
-    vi.mocked(ouvrirIndice).mockRejectedValue(new Error('réseau'))
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.mocked(ouvrirIndice).mockRejectedValue(new Error('boom'))
     afficher([indice({ id: 'h-1' })])
 
     await utilisateur.click(screen.getByRole('button', { name: 'Ouvrir l’indice' }))
@@ -119,6 +124,34 @@ describe('panneau des indices', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Indice indisponible')
     expect(screen.getByRole('button', { name: 'Ouvrir l’indice' })).toBeInTheDocument()
     expect(screen.getByText('Nouveau')).toBeInTheDocument()
+  })
+
+  it('donne la cause de l’échec quand elle est connue', async () => {
+    const utilisateur = userEvent.setup()
+    const journal = vi.spyOn(console, 'error').mockImplementation(() => {})
+    // Erreur Supabase : un objet simple, jamais une instance d'Error.
+    const erreur = { message: 'Indice non diffusé à cette équipe', code: 'P0001' }
+    vi.mocked(ouvrirIndice).mockRejectedValue(erreur)
+    afficher([indice({ id: 'h-1' })])
+
+    await utilisateur.click(screen.getByRole('button', { name: 'Ouvrir l’indice' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Cet indice n’a pas encore été diffusé à votre équipe.',
+    )
+    // L'erreur d'origine reste disponible pour le diagnostic.
+    expect(journal).toHaveBeenCalledWith(expect.stringContaining('indice'), erreur)
+  })
+
+  it('distingue une coupure réseau d’une indisponibilité', async () => {
+    const utilisateur = userEvent.setup()
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.mocked(ouvrirIndice).mockRejectedValue(new TypeError('Failed to fetch'))
+    afficher([indice({ id: 'h-1' })])
+
+    await utilisateur.click(screen.getByRole('button', { name: 'Ouvrir l’indice' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Connexion interrompue')
   })
 
   it('traite un indice automatique comme un indice manuel', async () => {

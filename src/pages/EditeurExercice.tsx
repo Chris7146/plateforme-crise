@@ -24,6 +24,7 @@ import {
   type ChampsEtape,
   type ModeFinTemps,
 } from '../lib/etapes'
+import { messageErreur } from '../lib/erreurs'
 
 /** Éditeur d'étapes d'un modèle ou d'une variante (lot 1, maquette `editeur-etapes.html`). */
 export function EditeurExercice() {
@@ -52,7 +53,7 @@ export function EditeurExercice() {
       )
       setErreur(null)
     } catch (e) {
-      setErreur(e instanceof Error ? e.message : 'Chargement impossible.')
+      setErreur(messageErreur(e, 'Chargement impossible.'))
     } finally {
       setChargement(false)
     }
@@ -110,7 +111,7 @@ export function EditeurExercice() {
     try {
       await action()
     } catch (e) {
-      setErreur(e instanceof Error ? e.message : 'Opération impossible.')
+      setErreur(messageErreur(e, 'Opération impossible.'))
       await recharger()
     }
   }

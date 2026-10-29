@@ -1,3 +1,4 @@
+import { texteErreur } from './erreurs'
 import { supabase } from './supabase'
 
 /**
@@ -80,7 +81,7 @@ export function validerPrenom(prenom: string): string | null {
  * Les messages métier de la base sont déjà en français : on les conserve.
  */
 export function messageErreurEntree(erreur: unknown): string {
-  const brut = erreur instanceof Error ? erreur.message : String(erreur)
+  const brut = texteErreur(erreur)
   if (/Code d.équipe inconnu/i.test(brut)) {
     return 'Code inconnu. Vérifiez les six caractères affichés par l’animateur.'
   }

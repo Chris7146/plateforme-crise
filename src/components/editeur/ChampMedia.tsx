@@ -6,6 +6,7 @@ import {
   televerserMedia,
   urlSigneeMedia,
 } from '../../lib/medias'
+import { messageErreur } from '../../lib/erreurs'
 
 /**
  * Sélection et téléversement d'un fichier dans le compartiment privé `media`.
@@ -46,7 +47,7 @@ export function ChampMedia({
     try {
       onChemin(await televerserMedia(exerciceId, fichier))
     } catch (e) {
-      setErreur(e instanceof Error ? e.message : 'Téléversement impossible.')
+      setErreur(messageErreur(e, 'Téléversement impossible.'))
     } finally {
       setEnCours(false)
       if (champ.current) champ.current.value = ''
@@ -58,7 +59,7 @@ export function ChampMedia({
     try {
       window.open(await urlSigneeMedia(chemin), '_blank', 'noopener')
     } catch (e) {
-      setErreur(e instanceof Error ? e.message : 'Prévisualisation impossible.')
+      setErreur(messageErreur(e, 'Prévisualisation impossible.'))
     }
   }
 

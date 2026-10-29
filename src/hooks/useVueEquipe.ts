@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { mesurerDecalage } from '../lib/horloge'
 import { chargerVueEquipe, type VueEquipe } from '../lib/participant'
+import { messageErreur } from '../lib/erreurs'
 
 /**
  * État d'équipe en temps réel, selon le principe « signal puis relecture »
@@ -46,7 +47,7 @@ export function useVueEquipe(equipeId: string): EtatEquipe {
       setErreur(null)
     } catch (e) {
       if (!actif.current) return
-      setErreur(e instanceof Error ? e.message : 'État indisponible.')
+      setErreur(messageErreur(e, 'État indisponible.'))
     }
   }, [equipeId])
 

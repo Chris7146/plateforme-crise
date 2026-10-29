@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Bouton, Erreur, Modale, ZoneTexte } from '../ui'
 import { envoyerMessageAnimateur, type Message } from '../../lib/console'
 import type { Equipe } from '../../lib/sessions'
+import { messageErreur } from '../../lib/erreurs'
 
 /** Échange de messages avec une équipe (RPC `send_staff_message`). */
 export function ModaleMessage({
@@ -31,7 +32,7 @@ export function ModaleMessage({
       setCorps('')
       onEnvoye()
     } catch (err) {
-      setErreur(err instanceof Error ? err.message : 'Message non envoyé.')
+      setErreur(messageErreur(err, 'Message non envoyé.'))
     } finally {
       setEnvoi(false)
     }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { mesurerDecalage } from '../lib/horloge'
 import { chargerConsole, type EtatConsole } from '../lib/console'
+import { messageErreur } from '../lib/erreurs'
 
 /**
  * État de la console animateur en temps réel (lot 4), selon le même principe
@@ -46,7 +47,7 @@ export function useConsole(sessionId: string): ConsoleTempsReel {
       setErreur(null)
     } catch (e) {
       if (!actif.current) return
-      setErreur(e instanceof Error ? e.message : 'État indisponible.')
+      setErreur(messageErreur(e, 'État indisponible.'))
     }
   }, [sessionId])
 

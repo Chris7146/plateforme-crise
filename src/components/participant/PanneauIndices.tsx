@@ -5,6 +5,7 @@ import {
   heureReception,
   indicesTries,
   libelleCompteur,
+  messageOuvertureIndice,
   nombreNonOuverts,
   suivreIndices,
   type SuiviIndices,
@@ -184,8 +185,11 @@ export function PanneauIndices({
       }
       setHalos((actuels) => actuels.filter((id) => id !== indice.id))
       onApresAction?.()
-    } catch {
-      setErreur('Indice indisponible pour l’instant. Réessayez.')
+    } catch (e) {
+      // L'erreur d'origine part dans la console du navigateur : c'est elle qui
+      // distingue une migration non appliquée d'une coupure réseau.
+      console.error('Ouverture d’un indice impossible', e)
+      setErreur(messageOuvertureIndice(e))
     } finally {
       setEnCours(null)
     }

@@ -1,3 +1,4 @@
+import { codeErreur, texteErreur } from './erreurs'
 import type { Indice } from './participant'
 
 /**
@@ -77,4 +78,39 @@ export function heureReception(indice: Indice): string {
     hour: '2-digit',
     minute: '2-digit',
   })
+}
+
+/**
+ * Message d'erreur à l'ouverture d'un indice.
+ *
+ * Au test du 29 octobre 2026, un `catch` muet affichait « Indice indisponible »
+ * dans tous les cas : impossible de distinguer une migration non appliquée
+ * d'une coupure réseau. Chaque cause connue a maintenant son message ; le
+ * message générique ne reste qu'en dernier recours, l'erreur d'origine partant
+ * dans la console du navigateur pour le diagnostic.
+ */
+export function messageOuvertureIndice(erreur: unknown): string {
+  const brut = texteErreur(erreur)
+
+  // Fonction absente de la base : la migration du panneau n'a pas été appliquée.
+  if (codeErreur(erreur) === 'PGRST202' || /schema cache|open_hint/i.test(brut)) {
+    return 'Cette version de l’application n’est pas encore installée sur la base. Prévenez l’animateur.'
+  }
+  // Coupure réseau : l'appel n'a jamais atteint le serveur.
+  if (/Failed to fetch|NetworkError|Load failed|réseau|network/i.test(brut)) {
+    return 'Connexion interrompue. L’indice reste disponible : réessayez.'
+  }
+  if (/exercice n.est pas en cours/i.test(brut)) {
+    return 'L’exercice n’est pas en cours : les indices ne sont plus accessibles.'
+  }
+  if (/tape n.est pas en cours/i.test(brut)) {
+    return 'Cette étape n’est plus en cours : l’indice ne peut plus être ouvert.'
+  }
+  if (/non diffus/i.test(brut)) {
+    return 'Cet indice n’a pas encore été diffusé à votre équipe.'
+  }
+  if (/Acc.s refus/i.test(brut)) {
+    return 'Cet indice ne concerne pas votre équipe.'
+  }
+  return 'Indice indisponible pour l’instant. Réessayez.'
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Bouton, Erreur } from '../ui'
 import { envoyerMessage, type VueEquipe } from '../../lib/participant'
+import { messageErreur } from '../../lib/erreurs'
 
 /** Messagerie avec l'animateur (lot 3). Les messages sont journalisés côté base. */
 export function Messagerie({
@@ -26,7 +27,7 @@ export function Messagerie({
       setCorps('')
       onApresAction()
     } catch (err) {
-      setErreur(err instanceof Error ? err.message : 'Message non envoyé.')
+      setErreur(messageErreur(err, 'Message non envoyé.'))
     } finally {
       setEnvoi(false)
     }

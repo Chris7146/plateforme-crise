@@ -31,6 +31,7 @@ import {
 import { deplacer } from '../../lib/etapes'
 import { typeContenuDepuisMime } from '../../lib/medias'
 import type { Etape } from '../../lib/exercices'
+import { messageErreur } from '../../lib/erreurs'
 
 type Edition =
   | { genre: 'contenu'; valeur: Contenu | null }
@@ -48,7 +49,7 @@ export function SectionsEtape({ exerciceId, etape }: { exerciceId: string; etape
       setElements(await chargerElements(etape.id))
       setErreur(null)
     } catch (e) {
-      setErreur(e instanceof Error ? e.message : 'Chargement impossible.')
+      setErreur(messageErreur(e, 'Chargement impossible.'))
     }
   }, [etape.id])
 
@@ -62,7 +63,7 @@ export function SectionsEtape({ exerciceId, etape }: { exerciceId: string; etape
     try {
       await action()
     } catch (e) {
-      setErreur(e instanceof Error ? e.message : 'Opération impossible.')
+      setErreur(messageErreur(e, 'Opération impossible.'))
     }
     await recharger()
   }
@@ -394,7 +395,7 @@ function FormulaireContenu({
       })
       onEnregistre()
     } catch (err) {
-      setErreur(err instanceof Error ? err.message : 'Enregistrement impossible.')
+      setErreur(messageErreur(err, 'Enregistrement impossible.'))
       setEnCours(false)
     }
   }
@@ -524,7 +525,7 @@ function FormulaireQuestion({
       })
       onEnregistre()
     } catch (err) {
-      setErreur(err instanceof Error ? err.message : 'Enregistrement impossible.')
+      setErreur(messageErreur(err, 'Enregistrement impossible.'))
       setEnCours(false)
     }
   }
@@ -679,7 +680,7 @@ function FormulaireIndice({
       })
       onEnregistre()
     } catch (err) {
-      setErreur(err instanceof Error ? err.message : 'Enregistrement impossible.')
+      setErreur(messageErreur(err, 'Enregistrement impossible.'))
       setEnCours(false)
     }
   }
